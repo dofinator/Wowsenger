@@ -1,4 +1,4 @@
--- Huddle – minimap-knap (LibDataBroker + LibDBIcon, samme libs som GuildCrafters og Grudge).
+-- Wowsenger – minimap-knap (LibDataBroker + LibDBIcon, samme libs som GuildCrafters og Grudge).
 -- Venstreklik åbner/lukker vinduet (brugerens valg 2026-11-21). Tooltip: ulæste pr. samtale.
 local _, ns = ...
 
@@ -13,7 +13,7 @@ local Minimap = {}
 ns.Minimap = Minimap
 
 function Minimap.Tooltip(tooltip)
-	tooltip:AddLine("Huddle")
+	tooltip:AddLine("Wowsenger")
 	local any = false
 	for conv, n in pairs(ns.DB.unread) do
 		if n > 0 then
@@ -23,18 +23,18 @@ function Minimap.Tooltip(tooltip)
 	end
 	if not any then tooltip:AddLine("No new messages", 0.6, 0.6, 0.6) end
 	tooltip:AddLine(" ")
-	tooltip:AddLine("|cffffd100Click|r to open Huddle", 0.8, 0.8, 0.8)
+	tooltip:AddLine("|cffffd100Click|r to open Wowsenger", 0.8, 0.8, 0.8)
 end
 
 function Minimap.Setup()
 	if not (LDB and LDBIcon) then return end
-	local launcher = LDB:NewDataObject("Huddle", {
+	local launcher = LDB:NewDataObject("Wowsenger", {
 		type = "launcher",
 		icon = ICON,
 		OnClick = function() ns.Window:Toggle() end,
 		OnTooltipShow = Minimap.Tooltip,
 	})
-	LDBIcon:Register("Huddle", launcher, ns.db.minimap)
+	LDBIcon:Register("Wowsenger", launcher, ns.db.minimap)
 end
 
 function Minimap.Toggle()
@@ -42,10 +42,10 @@ function Minimap.Toggle()
 	settings.hide = not settings.hide
 	if not LDBIcon then return end
 	if settings.hide then
-		LDBIcon:Hide("Huddle")
-		ns.Print("minimap button hidden. /huddle minimap shows it again.")
+		LDBIcon:Hide("Wowsenger")
+		ns.Print("minimap button hidden. /wowsenger minimap shows it again.")
 	else
-		LDBIcon:Show("Huddle")
+		LDBIcon:Show("Wowsenger")
 	end
 end
 

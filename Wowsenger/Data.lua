@@ -1,6 +1,6 @@
--- Huddle – gemte data (HuddleDB, pr. konto, så grupper og historik følger med mellem ens karakterer).
+-- Wowsenger – gemte data (WowsengerDB, pr. konto, så grupper og historik følger med mellem ens karakterer).
 --
--- HuddleDB = {
+-- WowsengerDB = {
 --   version  = 1,
 --   settings = { debug, toast, sound, minimap = { hide }, window = { point, relPoint, x, y } },
 --   chars    = { ["Navn-Realm"] = { class, last } },     -- egne karakterer (automatisk ved login)
@@ -9,7 +9,7 @@
 --   messages = { [gid] = { Msg, ... } },                 -- sorteret efter (t, a, n), max MAX_MESSAGES
 --   whispers = { ["Navn-Realm"] = { Whisper, ... } },    -- 1:1, max MAX_WHISPERS pr. person
 --   unread   = { [samtale] = antal },                    -- samtale = "g:<gid>" eller "w:<Navn-Realm>"
---   peers    = { ["Navn-Realm"] = { class, addon } },    -- hvad vi ved om andre (klasse, har Huddle)
+--   peers    = { ["Navn-Realm"] = { class, addon } },    -- hvad vi ved om andre (klasse, har Wowsenger)
 --   trace    = { ... },                                  -- fejlsøgning (Core.lua)
 -- }
 -- Group   = { name, members = { [navn] = true }, ver, by, former = { [navn] = true }, created, left, demo }
@@ -47,8 +47,11 @@ local function Fill(target, defaults)
 end
 
 function Data:Init()
-	HuddleDB = type(HuddleDB) == "table" and HuddleDB or {}
-	local db = HuddleDB
+	local db = _G[ns.DB_NAME]
+	if type(db) ~= "table" then
+		db = {}
+		_G[ns.DB_NAME] = db
+	end
 	db.version = db.version or 1
 	db.settings = type(db.settings) == "table" and db.settings or {}
 	Fill(db.settings, DEFAULT_SETTINGS)

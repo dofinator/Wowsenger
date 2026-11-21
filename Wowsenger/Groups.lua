@@ -1,4 +1,4 @@
--- Huddle – grupper og gruppebeskeder (uden transport; Comm.lua sender og modtager).
+-- Wowsenger – grupper og gruppebeskeder (uden transport; Comm.lua sender og modtager).
 --
 -- Regler (SPEC.md §5-6):
 --   * En besked er (gruppe, forfatter, nr). Samme nøgle to gange = én besked.

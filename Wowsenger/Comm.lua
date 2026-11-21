@@ -1,17 +1,17 @@
--- Huddle – transport: addon-whispers til hvert medlem (AceComm + AceSerializer), SPEC.md §4-5.
+-- Wowsenger – transport: addon-whispers til hvert medlem (AceComm + AceSerializer), SPEC.md §4-5.
 --
 -- Beskedtyper (felt k). Ukendte typer ignoreres; nye data = ny type, aldrig nye felter i gamle typer.
 --   H  { g = { [gid] = { v = version, h = have } }, r = 1 hvis svar, hv = addon-version }
 --   G  { d = gruppe-definition }                       (Groups:Def)
 --   M  { g = gid, m = { a, n, t, x }, s = 1 ved indhentning }
---   P / Q                                              ping / pong (/huddle debug ping)
+--   P / Q                                              ping / pong (/wowsenger debug ping)
 local _, ns = ...
 
 local Compat = ns.Compat
 local Data = ns.Data
 local Groups = ns.Groups
 
-local PREFIX = "Huddle1"
+local PREFIX = "Wowsenger1"
 local SYNC_LIMIT = 100          -- beskeder pr. gruppe pr. HELLO; resten tages ved næste runde
 local TICK = 300                -- hvert 5. minut: HELLO til dem, der er online eller ikke har seneste version
 local ONLINE_FOR = 1200         -- så længe regner vi en, vi har hørt fra, for online (sek.)
@@ -186,7 +186,7 @@ function Comm:OnCommReceived(prefix, text, distribution, sender)
 	elseif k == "P" then
 		self:Send(sender, { k = "Q", hv = ns.VERSION })
 	elseif k == "Q" then
-		ns.Print(("pong from %s (Huddle %s)"):format(sender, tostring(msg.hv)))
+		ns.Print(("pong from %s (Wowsenger %s)"):format(sender, tostring(msg.hv)))
 	end
 	ns.Changed("online", sender)
 end

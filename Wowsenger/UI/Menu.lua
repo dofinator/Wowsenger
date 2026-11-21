@@ -1,4 +1,4 @@
--- Huddle – egen lille højreklik-menu (ingen EasyMenu/UIDropDownMenu: taint på Mainline/Forever).
+-- Wowsenger – egen lille højreklik-menu (ingen EasyMenu/UIDropDownMenu: taint på Mainline/Forever).
 local _, ns = ...
 
 local UI = ns.UI
@@ -10,7 +10,7 @@ local MAX = 8
 local frame, buttons
 
 local function Create()
-	frame = CreateFrame("Frame", "HuddleMenu", UIParent, "BackdropTemplate")
+	frame = CreateFrame("Frame", "WowsengerMenu", UIParent, "BackdropTemplate")
 	frame:SetFrameStrata("FULLSCREEN_DIALOG")
 	frame:SetClampedToScreen(true)
 	frame:EnableMouse(true)
@@ -41,7 +41,7 @@ local function Create()
 			if self.away > 1.5 then self:Hide() end
 		end
 	end)
-	if UISpecialFrames then table.insert(UISpecialFrames, "HuddleMenu") end
+	if UISpecialFrames then table.insert(UISpecialFrames, "WowsengerMenu") end
 end
 
 -- items = { { text, fn }, ... }

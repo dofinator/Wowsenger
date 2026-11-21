@@ -1,6 +1,6 @@
--- Huddle – hovedvinduet (brugerens valg 2026-11-21: liste til venstre).
+-- Wowsenger – hovedvinduet (brugerens valg 2026-11-21: liste til venstre).
 --
---   +- Huddle ------------------------------------------[X]+
+--   +- Wowsenger ------------------------------------------[X]+
 --   | Groups        | Raid group   4 members, 2 online      |
 --   |  Raid     (3) | -- While you were offline --          |
 --   |  Alts         | 20:01 Anna: Tuesday 20:00?            |
@@ -108,7 +108,7 @@ local function RowTooltip(row)
 	else
 		GameTooltip:AddLine(Compat.ColorName(key, Data:Class(key)))
 		local peer = ns.DB.peers[key]
-		if peer and peer.addon then GameTooltip:AddLine("Has Huddle", 0.6, 0.6, 0.6) end
+		if peer and peer.addon then GameTooltip:AddLine("Has Wowsenger", 0.6, 0.6, 0.6) end
 		GameTooltip:AddLine("Last message " .. UI.Ago(Data:LastWhisperTime(key)), 0.8, 0.8, 0.8)
 	end
 	GameTooltip:AddLine(" ")
@@ -257,7 +257,7 @@ local function Create()
 	if C_XMLUtil and C_XMLUtil.GetTemplateInfo and not C_XMLUtil.GetTemplateInfo(template) then
 		template = "BasicFrameTemplate"
 	end
-	frame = CreateFrame("Frame", "HuddleFrame", UIParent, template)
+	frame = CreateFrame("Frame", "WowsengerFrame", UIParent, template)
 	frame:SetSize(WIDTH, HEIGHT)
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
@@ -281,8 +281,8 @@ local function Create()
 		title = UI.Text(frame, "GameFontHighlight")
 		title:SetPoint("TOP", 0, -5)
 	end
-	title:SetText("Huddle")
-	if UISpecialFrames then table.insert(UISpecialFrames, "HuddleFrame") end
+	title:SetText("Wowsenger")
+	if UISpecialFrames then table.insert(UISpecialFrames, "WowsengerFrame") end
 
 	-- Venstre: samtaler
 	local left = CreateFrame("Frame", nil, frame)

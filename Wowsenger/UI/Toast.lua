@@ -1,4 +1,4 @@
--- Huddle – lille toast ved ny besked, når vinduet er lukket (brugerens valg 2026-11-21).
+-- Wowsenger – lille toast ved ny besked, når vinduet er lukket (brugerens valg 2026-11-21).
 --
 --   +- Raid group ------------------+
 --   | Anna: Tuesday 20:00?          |
@@ -34,7 +34,7 @@ local function Place()
 end
 
 local function Create()
-	frame = CreateFrame("Button", "HuddleToast", UIParent, "BackdropTemplate")
+	frame = CreateFrame("Button", "WowsengerToast", UIParent, "BackdropTemplate")
 	frame:SetSize(280, 58)
 	-- Over action bars og andre addons' rammer.
 	frame:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -113,13 +113,13 @@ function Toast:Notify(conv, sender, text, isGroup)
 	Show(conv, UI.ConvTitle(conv), line, isGroup)
 end
 
--- /huddle toast test: en prøve-toast, der står lidt længere, så den kan trækkes på plads.
+-- /wowsenger toast test: en prøve-toast, der står lidt længere, så den kan trækkes på plads.
 function Toast:Test()
-	Show("test", "Huddle", "This is where new messages pop up", false)
+	Show("test", "Wowsenger", "This is where new messages pop up", false)
 	frame.hideAt = GetTime() + 15
 end
 
--- /huddle toast reset: tilbage til standardpladsen.
+-- /wowsenger toast reset: tilbage til standardpladsen.
 function Toast:ResetPosition()
 	ns.db.toastPos = nil
 	if frame then Place() end
@@ -149,6 +149,6 @@ ns.On("PLAYER_REGEN_ENABLED", function()
 	if n == 1 then
 		Show(last, UI.ConvTitle(last), "1 new message", true)
 	else
-		Show(last, "Huddle", ("%d new messages"):format(n), true)
+		Show(last, "Wowsenger", ("%d new messages"):format(n), true)
 	end
 end)

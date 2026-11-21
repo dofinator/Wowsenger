@@ -1,4 +1,4 @@
-"""Huddle – simulator: den rigtige addon-kode i flere falske WoW-klienter (Lua 5.1 via lupa).
+"""Wowsenger – simulator: den rigtige addon-kode i flere falske WoW-klienter (Lua 5.1 via lupa).
 
     pip install lupa
     python tools/sim.py            # alle scenarier
@@ -7,7 +7,7 @@
 
 Verden: klienter, der er online, får addon-whispers og whispers med det samme (ved næste step);
 til en offline spiller svarer "serveren" med "No player named '%s' is currently playing." som i spillet.
-Logout gemmer HuddleDB, login starter en ny Lua-runtime med den gemte data (som /reload).
+Logout gemmer WowsengerDB, login starter en ny Lua-runtime med den gemte data (som /reload).
 """
 import os
 import re
@@ -16,15 +16,15 @@ import sys
 from lupa import lua51
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ADDON = os.path.join(ROOT, "Huddle")
+ADDON = os.path.join(ROOT, "Wowsenger")
 VERBOSE = "-v" in sys.argv
 NOT_FOUND = "No player named '%s' is currently playing."
-ALLOWED_GLOBALS = ("HuddleDB", "SLASH_HUDDLE1", "SLASH_HUDDLE2")
+ALLOWED_GLOBALS = ("WowsengerDB", "WowsengerTestDB", "SLASH_WOWSENGER1", "SLASH_WOWSENGER2")
 
 
-def toc_files():
+def toc_files(toc="Wowsenger.toc"):
     files = []
-    with open(os.path.join(ADDON, "Huddle.toc"), encoding="utf-8") as f:
+    with open(os.path.join(ADDON, toc), encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#"):
@@ -50,7 +50,10 @@ def values(t):
 
 
 class Client:
-    def __init__(self, world, name, realm="Spineshatter", cls="PRIEST", db=None, account=None):
+    def __init__(self, world, name, realm="Spineshatter", cls="PRIEST", db=None, account=None,
+                 addons=("Wowsenger",)):
+        # addons: mappenavne i indlæsningsrækkefølge, fx ("Wowsenger", "WowsengerTest") når begge er slået til.
+        self.addon = addons[0]
         self.world = world
         self.name, self.realm = name, realm
         self.full = f"{name}-{realm}"
@@ -63,27 +66,40 @@ class Client:
         self.mock.player = self.lua.table_from({"name": name, "realm": realm, "class": cls})
         self.mock.guids = self.lua.table()
         if db:
-            self.lua.execute("HuddleDB = " + db)
-        self.ns = self.lua.table()
+            self.lua.execute(self.addon + "DB = " + db)
+        self.nss = {}
         allowed = "{" + ", ".join(f"{g} = true" for g in ALLOWED_GLOBALS) + "}"
         # Hver fil kører i et miljø, der fejler ved skrivning til andre globaler end vores egne
         # (at overskrive en Blizzard-global giver taint i spillet).
-        loader = self.lua.eval("""function(code, name, ns)
+        loader = self.lua.eval("""function(code, name, ns, addon)
             local allowed = %s
             local env = setmetatable({}, {
                 __index = _G,
                 __newindex = function(_, k, v)
-                    if not allowed[k] then error("Huddle writes global " .. tostring(k), 2) end
+                    if not allowed[k] then error("Wowsenger writes global " .. tostring(k), 2) end
                     _G[k] = v
                 end,
             })
             local f = assert(loadstring(code, name))
             setfenv(f, env)
-            f('Huddle', ns)
+            f(addon, ns)
         end""" % allowed)
         plain = self.lua.eval("function(code, name) assert(loadstring(code, name))() end")
-        for rel in toc_files():
+        for addon in addons:
+            self.nss[addon] = self.load(addon, loader, plain)
+        self.ns = self.nss[self.addon]
+        for addon in addons:
+            self.fire("ADDON_LOADED", addon)
+        self.fire("PLAYER_LOGIN")
+        self.fire("PLAYER_ENTERING_WORLD")
+
+    def load(self, addon, loader, plain):
+        ns = self.lua.table()
+        self.mock.loadedAddons[addon] = True   # "loading" tæller som indlæst i spillet
+        for rel in toc_files(addon + ".toc"):
             if rel.startswith("Libs"):
+                if self.nss:
+                    continue   # bibliotekerne findes kun én gang, som i spillet (LibStub)
                 if rel.endswith("LibStub.lua"):
                     with open(os.path.join(ADDON, rel), encoding="utf-8") as f:
                         plain(f.read(), "@" + rel)
@@ -94,10 +110,8 @@ class Client:
                         plain(f.read(), "@AceSerializer-3.0.lua")
                 continue
             with open(os.path.join(ADDON, rel), encoding="utf-8") as f:
-                loader(f.read(), "@" + rel, self.ns)
-        self.fire("ADDON_LOADED", "Huddle")
-        self.fire("PLAYER_LOGIN")
-        self.fire("PLAYER_ENTERING_WORLD")
+                loader(f.read(), "@" + rel, ns, addon)
+        return ns
 
     # --- grundlæggende ---
     def fire(self, event, *args):
@@ -108,7 +122,7 @@ class Client:
         return o[method](o, *args)
 
     def slash(self, text):
-        self.lua.globals().SlashCmdList.HUDDLE(text)
+        self.lua.globals().SlashCmdList.WOWSENGER(text)
 
     def chat(self):
         return [strip(m) for m in values(self.mock.chat)]
@@ -133,7 +147,7 @@ class Client:
 
     # --- data ---
     def db(self):
-        return self.lua.globals().HuddleDB
+        return self.lua.globals()[self.addon + "DB"]
 
     def groups(self):
         out = {}
@@ -212,14 +226,14 @@ class Client:
         return strip(text) if shown else None
 
     def confirm_yes(self):
-        self.lua.eval("function() HuddleConfirm.yes.scripts.OnClick(HuddleConfirm.yes) end")()
+        self.lua.eval("function() WowsengerConfirm.yes.scripts.OnClick(WowsengerConfirm.yes) end")()
 
 
 class World:
     def __init__(self):
         self.now = 1000.0
         self.clients = {}       # full -> Client (online)
-        self.saved = {}         # account -> HuddleDB som Lua-kode
+        self.saved = {}         # account -> WowsengerDB som Lua-kode
         self.loss = None        # fn(sender_full, target_full, payload_text) -> True = tabt
         self.secret_whispers = False
         self.line = 0
@@ -234,10 +248,10 @@ class World:
             me.mock.bnet[other.bnet_id] = info
             me.mock.bnetFriends[len(me.mock.bnetFriends) + 1] = info
 
-    def login(self, name, realm="Spineshatter", cls="PRIEST", account=None):
+    def login(self, name, realm="Spineshatter", cls="PRIEST", account=None, addons=("Wowsenger",)):
         full = f"{name}-{realm}"
         acct = account or full
-        c = Client(self, name, realm, cls, db=self.saved.get(acct), account=acct)
+        c = Client(self, name, realm, cls, db=self.saved.get((acct, addons[0])), account=acct, addons=addons)
         # Battle.net: én konto pr. account, med fast id og BattleTag i simulatoren.
         if acct not in self.bnet_ids:
             self.bnet_ids[acct] = 100 + len(self.bnet_ids)
@@ -248,7 +262,7 @@ class World:
         return c
 
     def logout(self, c):
-        self.saved[c.account] = c.lua.eval("function() return mock.dump(HuddleDB) end")()
+        self.saved[(c.account, c.addon)] = c.lua.eval("function() return mock.dump(%sDB) end" % c.addon)()
         del self.clients[c.full]
 
     def sender_name(self, sender, recipient):
@@ -452,31 +466,31 @@ def _():
     # Beskederne skrives som Lua-literaler og serialiseres med den rigtige AceSerializer.
     msg = e.lua.eval("function(s) return LibStub('AceSerializer-3.0'):Serialize(loadstring('return ' .. s)()) end")
     fake = msg('{ k = "M", g = %r, m = { a = "Evil-Spineshatter", n = 1, t = 5, x = "spam" } }' % gid)
-    b.mock.receive("Huddle1", fake, "WHISPER", "Evil")
+    b.mock.receive("Wowsenger1", fake, "WHISPER", "Evil")
     check(b.texts(gid) == [], "besked fra ikke-medlem afvist")
     forged = msg('{ k = "M", g = %r, m = { a = "Anna-Spineshatter", n = 9, t = 5, x = "forged" } }' % gid)
-    b.mock.receive("Huddle1", forged, "WHISPER", "Evil")
+    b.mock.receive("Wowsenger1", forged, "WHISPER", "Evil")
     check(b.texts(gid) == [], "ikke-medlem kan ikke sende i et medlems navn")
     group = msg('{ k = "G", d = { id = %r, name = "Hacked", m = { "Evil-Spineshatter", "Bob-Spineshatter" },'
                 ' v = 9999999999, by = "Evil" } }' % gid)
-    b.mock.receive("Huddle1", group, "WHISPER", "Evil")
+    b.mock.receive("Wowsenger1", group, "WHISPER", "Evil")
     check(b.groups()[gid]["name"] == "Raid group", "ikke-medlem kan ikke ændre gruppen")
     forged2 = msg('{ k = "M", g = %r, m = { a = "Anna-Spineshatter", n = 7, t = 5, x = "fake anna" } }' % gid)
     a_name = "Bob"  # et medlem, der ikke er forfatteren, uden indhentnings-flag
     c_like = msg('{ k = "M", g = %r, m = { a = "Bob-Spineshatter", n = 7, t = 5, x = "fake bob" } }' % gid)
-    a.mock.receive("Huddle1", c_like, "WHISPER", "Cleo-Firemaw")
+    a.mock.receive("Wowsenger1", c_like, "WHISPER", "Cleo-Firemaw")
     check("fake bob" not in a.texts(gid), "medlem uden for gruppen kan ikke skrive i Bobs navn")
-    b.mock.receive("Huddle1", forged2, "WHISPER", a_name)
+    b.mock.receive("Wowsenger1", forged2, "WHISPER", a_name)
     a.post(gid, "real")
     w.step(1)
     raw = msg('{ k = "M", g = %r, m = { a = "Anna-Spineshatter", n = 1, t = 5, x = "real" } }' % gid)
-    b.mock.receive("Huddle1", raw, "WHISPER", "Anna")
+    b.mock.receive("Wowsenger1", raw, "WHISPER", "Anna")
     check(b.texts(gid) == ["real"], f"samme besked to gange = én: {b.texts(gid)}")
     # Et medlem må ikke sende en "original" i et andet medlems navn (kun indhentning må relaye).
     gid2 = a.create("Three", ["Bob-Spineshatter", "Cleo-Firemaw"])
     w.step(2)
     as_anna = msg('{ k = "M", g = %r, m = { a = "Anna-Spineshatter", n = 5, t = 5, x = "not anna" } }' % gid2)
-    c.mock.receive("Huddle1", as_anna, "WHISPER", "Bob-Spineshatter")
+    c.mock.receive("Wowsenger1", as_anna, "WHISPER", "Bob-Spineshatter")
     check("not anna" not in c.texts(gid2), "medlem kan ikke skrive som et andet medlem uden indhentning")
 
 
@@ -715,7 +729,7 @@ def _():
     a = w.login("Anna")
     w.step(6)
     a.slash("toast test")
-    t = a.lua.globals().HuddleToast
+    t = a.lua.globals().WowsengerToast
     check(a.toast() is not None, "prøve-toast vises")
     check(list(a.call("Toast", "Point"))[:3] == ["TOP", t.points[1][2], "TOP"] or
           (t.points[1][1] == "TOP" and t.points[1][3] == "TOP"), f"standardplads øverst i midten: {list(t.points[1].values())}")
@@ -735,7 +749,7 @@ def _():
     a = w.login("Anna")
     w.step(6)
     a.slash("toast test")
-    t = a.lua.globals().HuddleToast
+    t = a.lua.globals().WowsengerToast
     check(t.points[1][1] == "CENTER" and t.points[1][4] == 200, "pladsen huskes efter login")
     a.slash("toast reset")
     check(t.points[1][1] == "TOP" and a.db().settings.toastPos is None, "reset sætter den øverst igen")
@@ -743,14 +757,63 @@ def _():
 
 @scenario("24. udgivelse: CHANGELOG passer til versionen, pakken indeholder kun addonen")
 def _():
-    toc = open(os.path.join(ADDON, "Huddle.toc"), encoding="utf-8").read()
+    toc = open(os.path.join(ADDON, "Wowsenger.toc"), encoding="utf-8").read()
     version = re.search(r"^## Version:\s*(\S+)", toc, re.M).group(1)
     first = open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8").readline().strip()
-    check(first == f"# Huddle {version}", f"CHANGELOG starter med '# Huddle {version}': {first!r}")
+    check(first == f"# Wowsenger {version}", f"CHANGELOG starter med '# Wowsenger {version}': {first!r}")
     check(re.search(r"^## X-Curse-Project-ID:\s*\d+", toc, re.M) is not None, "CurseForge-projekt-id i .toc")
     pkg = open(os.path.join(ROOT, ".pkgmeta"), encoding="utf-8").read()
     for name in ("tools", "assets", "SPEC.md", "CLAUDE.md"):
         check(f"  - {name}" in pkg, f".pkgmeta udelader {name}")
+
+
+@scenario("25. testudgaven WowsengerTest: egne data, og kun én kopi kører ad gangen")
+def _():
+    def toc(name):
+        return open(os.path.join(ADDON, name), encoding="utf-8").read()
+
+    def head(text, key):
+        m = re.search(r"^## %s:.*$" % key, text, re.M)
+        return m.group(0) if m else None
+
+    def body(text):
+        return [l for l in text.splitlines() if l.strip() and not l.startswith("#")]
+    main, test = toc("Wowsenger.toc"), toc("WowsengerTest.toc")
+    check(body(main) == body(test), "WowsengerTest.toc lister de samme filer som Wowsenger.toc")
+    for key in ("Interface", "Version", "IconTexture"):
+        check(head(main, key) == head(test, key), f"samme {key} i begge .toc ({head(test, key)})")
+    check(head(test, "SavedVariables") == "## SavedVariables: WowsengerTestDB", "testudgaven gemmer i WowsengerTestDB")
+    check("[TEST]" in (head(test, "Title") or ""), "testudgaven hedder [TEST] på AddOns-listen")
+    check("  - Wowsenger/WowsengerTest.toc" in toc(os.path.join("..", ".pkgmeta")), "WowsengerTest.toc kommer ikke med i pakken")
+
+    # Testudgaven alene: virker som den rigtige, men med sine egne data.
+    w = World()
+    a = w.login("Anna", addons=("WowsengerTest",))
+    b = w.login("Bob")
+    w.step(6)
+    gid = a.create("Test", ["Bob-Spineshatter"])
+    w.step(1)
+    a.post(gid, "hej fra testudgaven")
+    w.step(1)
+    check(b.texts(gid) == ["hej fra testudgaven"], "testudgaven taler med den udgivne addon")
+    g = a.lua.globals()
+    check(g.WowsengerTestDB is not None and g.WowsengerDB is None, "testudgaven bruger WowsengerTestDB og rører ikke WowsengerDB")
+    w.logout(a)
+    a = w.login("Anna", addons=("WowsengerTest",))
+    check(a.texts(gid) == ["hej fra testudgaven"], "testudgavens data huskes efter login")
+    a2 = World().login("Anna")
+    check(a2.groups() == {}, "den udgivne addon ser ikke testudgavens grupper")
+
+    # Begge slået til: Wowsenger indlæses først og kører; WowsengerTest holder sig i ro og siger det.
+    w = World()
+    c = w.login("Cleo", addons=("Wowsenger", "WowsengerTest"))
+    test_ns = c.nss["WowsengerTest"]
+    check(test_ns.inactive is True and not c.ns.inactive, "kun den udgivne kopi kører")
+    check(c.lua.globals().WowsengerTestDB is None, "den inaktive kopi laver ingen gemte data")
+    check(any("Not running" in l and "Wowsenger is enabled too" in l for l in c.chat()), f"besked i chatten: {c.chat()}")
+    c.slash("debug demo")
+    check(c.call("Groups", "Get", "demo:1") is not None, "/wowsenger er den udgivne kopis")
+    check(test_ns.DB is None, "den inaktive kopi læste aldrig data")
 
 
 @scenario("18. ukendte events (Forever kaster fejl) stopper ikke addonen")
@@ -766,7 +829,7 @@ def _():
     check(reg(a.ns) is False, "TryRegister svarer false i stedet for at fejle")
 
 
-@scenario("19. minimap-tooltip viser ulæste; /huddle åbner og lukker")
+@scenario("19. minimap-tooltip viser ulæste; /wowsenger åbner og lukker")
 def _():
     w, a, b, c = trio()
     gid = a.create("Raid group", ["Bob-Spineshatter"])
@@ -779,9 +842,9 @@ def _():
     lines = [strip(l) for l in values(tip.lines)]
     check("Raid group | 1 new" in lines, f"tooltip: {lines}")
     b.slash("")
-    check(b.call("Window", "IsShown"), "/huddle åbner")
+    check(b.call("Window", "IsShown"), "/wowsenger åbner")
     b.slash("")
-    check(not b.call("Window", "IsShown"), "/huddle lukker")
+    check(not b.call("Window", "IsShown"), "/wowsenger lukker")
 
 
 @scenario("20. alt-indmelding: kun præcis 'afsenderen kommer med', aldrig en fjernet eller med falsk main")
@@ -795,16 +858,16 @@ def _():
     ver = b.groups()[gid]["ver"] + 10
     rejoin = ser('{ k = "G", j = "Anna-Spineshatter", d = { id = %r, name = "Raid group", v = %d, by = "Cleo-Firemaw",'
                  ' m = { "Anna-Spineshatter", "Bob-Spineshatter", "Cleo-Firemaw" } } }' % (gid, ver))
-    b.mock.receive("Huddle1", rejoin, "WHISPER", "Cleo-Firemaw")
+    b.mock.receive("Wowsenger1", rejoin, "WHISPER", "Cleo-Firemaw")
     check("Cleo-Firemaw" not in b.groups()[gid]["members"], "fjernet medlem kan ikke melde sig ind som alt")
     e = w.login("Evil")
     grab = ser('{ k = "G", j = "Anna-Spineshatter", d = { id = %r, name = "Mine", v = %d, by = "Evil",'
                ' m = { "Evil-Spineshatter" } } }' % (gid, ver))
-    b.mock.receive("Huddle1", grab, "WHISPER", "Evil")
+    b.mock.receive("Wowsenger1", grab, "WHISPER", "Evil")
     check(b.groups()[gid]["members"] == ["Anna-Spineshatter", "Bob-Spineshatter"], "alt kan ikke fjerne andre")
     fake_main = ser('{ k = "G", j = "Zed-Spineshatter", d = { id = %r, name = "Raid group", v = %d, by = "Evil",'
                     ' m = { "Anna-Spineshatter", "Bob-Spineshatter", "Evil-Spineshatter" } } }' % (gid, ver))
-    b.mock.receive("Huddle1", fake_main, "WHISPER", "Evil")
+    b.mock.receive("Wowsenger1", fake_main, "WHISPER", "Evil")
     check("Evil-Spineshatter" not in b.groups()[gid]["members"], "main skal være medlem")
 
 

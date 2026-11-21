@@ -1,0 +1,29 @@
+## Interface: 16001, 120105, 120107
+## Title: Wowsenger |cffff8000[TEST]|r
+## Notes: Development copy of Wowsenger, loaded straight from the repository. Disable Wowsenger while this one is enabled.
+## Author: Christoffer
+## Version: 0.2.0
+## SavedVariables: WowsengerTestDB
+## IconTexture: Interface\Icons\INV_Misc_Note_01
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\AceComm-3.0\AceComm-3.0.xml
+Libs\AceSerializer-3.0\AceSerializer-3.0.xml
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\lib.xml
+
+Compat.lua
+Core.lua
+Data.lua
+Groups.lua
+Comm.lua
+Whispers.lua
+UI\Common.lua
+UI\Menu.lua
+UI\Toast.lua
+UI\NewGroup.lua
+UI\Window.lua
+UI\Minimap.lua
+Debug.lua
+Slash.lua

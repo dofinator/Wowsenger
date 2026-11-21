@@ -1,4 +1,4 @@
--- Minimal falsk WoW-API til tools/sim.py. Én kopi pr. klient (egen Lua-runtime). Kun det Huddle bruger.
+-- Minimal falsk WoW-API til tools/sim.py. Én kopi pr. klient (egen Lua-runtime). Kun det Wowsenger bruger.
 mock = { now = 1000, clock = 1763700000, timers = {}, frames = {}, chat = {}, sent = {}, whispersOut = {},
 	comm = {}, ldb = {}, secret = {}, friends = {}, filters = {}, hooks = {}, inCombat = false,
 	player = { name = "Tester", realm = "Spineshatter", class = "PRIEST" } }
@@ -39,6 +39,8 @@ function UnitClass(unit) if unit == "player" then return mock.player.class, mock
 function GetRealmName() return mock.player.realm end
 function GetNormalizedRealmName() return (mock.player.realm:gsub("%s", "")) end
 function GetAddOnMetadata() return "0.1.0" end
+mock.loadedAddons = {}
+function IsAddOnLoaded(name) return mock.loadedAddons[name] and true or false end
 function geterrorhandler() return function(err) error(err) end end
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 function InCombatLockdown() return mock.inCombat end
@@ -60,7 +62,7 @@ RAID_CLASS_COLORS = {
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) table.insert(mock.chat, msg) end }
 SlashCmdList = {}
 UISpecialFrames = {}
--- Huddle må ikke bruge Blizzards popups/menuer (taint).
+-- Wowsenger må ikke bruge Blizzards popups/menuer (taint).
 StaticPopupDialogs = setmetatable({}, { __newindex = function(_, k) error("StaticPopupDialogs." .. tostring(k)) end })
 function StaticPopup_Show(name) error("StaticPopup_Show(" .. tostring(name) .. ")") end
 function EasyMenu() error("EasyMenu") end
@@ -230,7 +232,7 @@ function mock.receive(prefix, text, dist, sender)
 	if h then h.obj[h.method](h.obj, prefix, text, dist, sender) end
 end
 
--- Gemmer HuddleDB som Lua-kode (til "logout" -> "login" i simulatoren).
+-- Gemmer WowsengerDB som Lua-kode (til "logout" -> "login" i simulatoren).
 function mock.dump(v, indent)
 	indent = indent or ""
 	local t = type(v)

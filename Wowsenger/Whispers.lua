@@ -1,5 +1,5 @@
--- Huddle – almindelige 1:1-whispers (også med folk uden addonen). Blizzards chat viser dem stadig
--- (brugerens valg 2026-11-21); Huddle gemmer en kopi og viser samtalen i sit vindue.
+-- Wowsenger – almindelige 1:1-whispers (også med folk uden addonen). Blizzards chat viser dem stadig
+-- (brugerens valg 2026-11-21); Wowsenger gemmer en kopi og viser samtalen i sit vindue.
 -- Under encounters/M+ kan teksten være "secret": så gemmes kun en grå markering (SPEC.md §7).
 local _, ns = ...
 
