@@ -1,0 +1,97 @@
+name: Release
+
+# Samme opbygning som GuildCrafters. Push til main med en ny "## Version" i Huddle/Huddle.toc:
+#   job "tag":     simulator -> tag v<version> -> starter dette workflow igen på tagget
+#   job "package": pakker tagget og uploader til CurseForge + GitHub Releases
+# Push uden ny version gør ingenting.
+#
+# Packageren nægter at pakke et tagget commit på et branch-push ("Found future tag"), og et tag
+# pushet med GITHUB_TOKEN starter ikke selv et workflow. Derfor to trin med workflow_dispatch imellem.
+#
+# "Run workflow" (manuelt):
+#   på en branch -> kun en prøvepakke uden upload; zip'en ligger som artifact på kørslen
+#   på et tag    -> pakker og uploader det tag (bruges også til at prøve igen efter en fejlet upload)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # alle tags skal med, så vi kan se om versionen er udgivet
+
+      - name: Find version
+        id: version
+        run: |
+          version=$(sed -n 's/^## Version:[[:space:]]*//p' Huddle/Huddle.toc | tr -d '\r')
+          if [ -z "$version" ]; then
+            echo "Ingen ## Version i Huddle.toc" >&2
+            exit 1
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "v$version er allerede udgivet - intet at gøre"
+          else
+            echo "Ny version: $version"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.version.outputs.release == 'true'
+        with:
+          python-version: "3.13"
+
+      - name: Simulator
+        if: steps.version.outputs.release == 'true'
+        run: |
+          pip install lupa
+          python tools/sim.py
+
+      - name: Tag og start pakning
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+
+  package:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # packageren bruger tags og historik til version og changelog
+
+      # Projekt-id'et læses fra "## X-Curse-Project-ID" i .toc'en. Uden CF_API_KEY springes CurseForge over.
+      - name: Pak og upload
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prøvepakke (ingen upload)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: BigWigsMods/packager@v2
+        with:
+          args: -d
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: Huddle-proevepakke
+          path: .release/*.zip
+          include-hidden-files: true # .release er en skjult mappe

@@ -1,0 +1,21 @@
+# Opsætning til BigWigsMods/packager (se .github/workflows/release.yml).
+package-as: Huddle
+
+# Release notes på CurseForge og GitHub Releases er CHANGELOG.md, skrevet til spillere.
+# Filen skal starte med "# Huddle <version>"; simulatoren (scenarie 24) fejler ellers.
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# Addonen ligger i undermappen Huddle/ – flyt den op i pakkens rod, så zip'en bliver Huddle/Huddle.toc.
+move-folders:
+  Huddle/Huddle: Huddle
+
+# Alt uden for addon-mappen skal ikke med i pakken.
+ignore:
+  - tools
+  - dist
+  - assets
+  - README.md
+  - SPEC.md
+  - CLAUDE.md

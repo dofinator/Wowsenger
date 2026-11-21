@@ -1,0 +1,30 @@
+## Interface: 16001, 120105, 120107
+## Title: Huddle
+## Notes: Messenger-style chat: group conversations with your friends (offline friends catch up at login) and your whispers, in one window.
+## Author: Christoffer
+## Version: 0.1.0
+## SavedVariables: HuddleDB
+## IconTexture: Interface\Icons\INV_Misc_Note_01
+## X-Curse-Project-ID: 1821480
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\AceComm-3.0\AceComm-3.0.xml
+Libs\AceSerializer-3.0\AceSerializer-3.0.xml
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\lib.xml
+
+Compat.lua
+Core.lua
+Data.lua
+Groups.lua
+Comm.lua
+Whispers.lua
+UI\Common.lua
+UI\Menu.lua
+UI\Toast.lua
+UI\NewGroup.lua
+UI\Window.lua
+UI\Minimap.lua
+Debug.lua
+Slash.lua

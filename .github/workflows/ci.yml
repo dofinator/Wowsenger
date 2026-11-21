@@ -1,0 +1,23 @@
+name: CI
+
+# Kører simulatoren på hver pull request mod main.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  sim:
+    name: Simulator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Simulator
+        run: |
+          pip install lupa
+          python tools/sim.py
