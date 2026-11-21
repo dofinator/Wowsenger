@@ -28,7 +28,7 @@ Chat with several friends at once, like a messenger. One Blizzard-style window h
 
 ## Commands
 
-- `/wowsenger`: open or close the window
+- `/wowsenger` (or `/ws`): open or close the window
 - `/wowsenger toast test`: show a sample popup (drag it where you want it)
 - `/wowsenger toast reset`: put the popup back at the top
 - `/wowsenger debug demo`: a demo group to try the window on your own (`/wowsenger debug demo off` removes it)
