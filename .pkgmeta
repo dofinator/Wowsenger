@@ -1,15 +1,15 @@
 # Opsætning til BigWigsMods/packager (se .github/workflows/release.yml).
-package-as: Huddle
+package-as: Wowsenger
 
 # Release notes på CurseForge og GitHub Releases er CHANGELOG.md, skrevet til spillere.
-# Filen skal starte med "# Huddle <version>"; simulatoren (scenarie 24) fejler ellers.
+# Filen skal starte med "# Wowsenger <version>"; simulatoren (scenarie 24) fejler ellers.
 manual-changelog:
   filename: CHANGELOG.md
   markup-type: markdown
 
-# Addonen ligger i undermappen Huddle/ – flyt den op i pakkens rod, så zip'en bliver Huddle/Huddle.toc.
+# Addonen ligger i undermappen Wowsenger/ – flyt den op i pakkens rod, så zip'en bliver Wowsenger/Wowsenger.toc.
 move-folders:
-  Huddle/Huddle: Huddle
+  Wowsenger/Wowsenger: Wowsenger
 
 # Alt uden for addon-mappen skal ikke med i pakken.
 ignore:
@@ -19,3 +19,5 @@ ignore:
   - README.md
   - SPEC.md
   - CLAUDE.md
+  # Testudgavens .toc (se README "Udvikling") hører kun hjemme i repoet.
+  - Wowsenger/WowsengerTest.toc

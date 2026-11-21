@@ -1,4 +1,4 @@
-# Huddle – design og protokol
+# Wowsenger – design og protokol
 
 Messenger-agtig chat i WoW: **gruppesamtaler** mellem venner på tværs af guilds plus almindelige
 1:1-whispers, samlet i ét vindue med ulæst-markeringer og historik. Ingen server: gruppebeskeder går
@@ -16,17 +16,17 @@ Intet er set i en rigtig klient endnu. Mål: WoW Forever først, Retail bagefter
   samtalen til højre med skrivefelt nederst. Valgt fra mockups.
 - Medlemmer: **alle på realmen**, ikke kun egen guild.
 - **1:1-whispers ligger også i vinduet**, også med folk uden addonen (almindelige whispers).
-- Navn: **Huddle** (ikke guild-bundet; intet CurseForge-projekt med det navn fundet 2026-11-21).
+- Navn: **Wowsenger** (ikke guild-bundet; intet CurseForge-projekt med det navn fundet 2026-11-21).
 - Ny besked med vinduet lukket: **lille toast** i hjørnet (5 s, blød lyd, klik åbner). Valgt fra
   mockups; fravalgt: kun tal på minimap-knappen, linje i den normale chat.
 - Ny gruppe: **dialog** "New group" med navn + afkrydsning af medlemmer. Fravalgt: "Start group
   with..." fra højreklik.
 - **Alle medlemmer må tilføje og fjerne**, alle kan forlade. **Ingen invitation at acceptere**.
-- Whispers står **begge steder** (Huddle og Blizzards chat). Vinduet åbnes med **minimap-knappen**
-  (`/huddle` findes også). Egne alts genkendes **automatisk**: alle karakterer på kontoen, der har
-  logget ind med Huddle.
+- Whispers står **begge steder** (Wowsenger og Blizzards chat). Vinduet åbnes med **minimap-knappen**
+  (`/wowsenger` findes også). Egne alts genkendes **automatisk**: alle karakterer på kontoen, der har
+  logget ind med Wowsenger.
 - **Forever først**: `## Interface: 16001, 120105, 120107`; junction i
-  `_forever_\Interface\AddOns\Huddle` -> `Huddle/` i dette repo.
+  `_forever_\Interface\AddOns\Wowsenger` -> `Wowsenger/` i dette repo.
 
 ## 2. Vilkår, der styrer designet
 
@@ -36,7 +36,7 @@ Intet er set i en rigtig klient endnu. Mål: WoW Forever først, Retail bagefter
    med *et hvilket som helst* andet medlem, der har beskeden (§5).
 3. **Addon-beskeder er spærret i bosskampe, M+ og rated PvP**, og på Forever er dungeons og raids
    "communication-restricted". Whispers kan have "secret values", som
-   addons ikke må læse eller gemme. Huddle stoler derfor aldrig på, at en enkelt besked når frem (§5).
+   addons ikke må læse eller gemme. Wowsenger stoler derfor aldrig på, at en enkelt besked når frem (§5).
 4. **255 bytes pr. addon-besked.** Lange beskeder deles af AceComm.
 5. **Klienter:** WoW Forever først, så Retail 12.x (samme familie). Classic-klienterne senere (en
    .toc-linje og et tjek af Compat.lua). Alt klientafhængigt går gennem `Compat.lua`.
@@ -52,7 +52,7 @@ Intet er set i en rigtig klient endnu. Mål: WoW Forever først, Retail bagefter
 
 ## 4. Transport (Comm.lua)
 
-- Præfiks `Huddle1`, AceComm-3.0 + AceSerializer-3.0, distribution `WHISPER` til hvert medlem.
+- Præfiks `Wowsenger1`, AceComm-3.0 + AceSerializer-3.0, distribution `WHISPER` til hvert medlem.
 - Typer (felt `k`): `H` hello `{ g = { [gid] = { v, h } }, r, hv }`, `G` gruppe `{ d, j }`,
   `M` besked `{ g, m = { a, n, t, x }, s, f }`, `P`/`Q` ping/pong. Ukendte typer ignoreres. Ny data
   senere = ny type, aldrig nye felter i de eksisterende (lærdommen fra GuildCrafters §5).
@@ -70,7 +70,7 @@ Intet er set i en rigtig klient endnu. Mål: WoW Forever først, Retail bagefter
   `ChatFrame_AddMessageEventFilter` (Classic). **Ikke set i spillet**: om addon-whispers til offline
   spillere giver den fejlbesked på Forever, og om filteret skjuler den.
 - I kamp (`InCombatLockdown`) sendes intet; alt står i kø og sendes i rækkefølge efter kampen.
-  `C_ChatInfo`-lockdown-funktionerne styrer intet (GuildCrafters-lærdom), de vises i `/huddle status`.
+  `C_ChatInfo`-lockdown-funktionerne styrer intet (GuildCrafters-lærdom), de vises i `/wowsenger status`.
 
 ## 5. Levering til dem, der var offline (indhentning)
 
@@ -122,12 +122,12 @@ Intet er set i en rigtig klient endnu. Mål: WoW Forever først, Retail bagefter
   **Ikke set i spillet endnu.**
 - Secret values: er beskedteksten "secret" (bosskamp, M+), gemmes den ikke. Den står i Blizzards chat
   som normalt, og samtalen viser en grå linje "message hidden during an encounter".
-- Whispers står også i Blizzards chat (brugerens valg); Huddle ændrer intet der.
+- Whispers står også i Blizzards chat (brugerens valg); Wowsenger ændrer intet der.
 
 ## 8. Vindue (UI/Window.lua)
 
 ```
-+- Huddle ------------------------------------------[X]+
++- Wowsenger ------------------------------------------[X]+
 | Groups        | Raid group   4 members, 2 online      |
 |  Raid       3 | -- Fri 21 Nov --                      |
 |  Alts         | -- While you were offline --          |
@@ -144,26 +144,26 @@ Intet er set i en rigtig klient endnu. Mål: WoW Forever først, Retail bagefter
 - Højreklik på en gruppe: Edit group..., Leave group (bekræft). På en person: Invite to party,
   Delete conversation (bekræft). Egne små vinduer i stedet for StaticPopup/EasyMenu (taint, Grudge).
 - Toast (UI/Toast.lua): øverst i midten (brugerens valg 2026-11-21: nederst til højre lå den bag action
-  bars), strata FULLSCREEN_DIALOG, kan trækkes (plads i `settings.toastPos`; `/huddle toast test` viser en
-  prøve, `/huddle toast reset` sætter den tilbage), 5 s, lyd kun for gruppebeskeder (Blizzard spiller selv en
+  bars), strata FULLSCREEN_DIALOG, kan trækkes (plads i `settings.toastPos`; `/wowsenger toast test` viser en
+  prøve, `/wowsenger toast reset` sætter den tilbage), 5 s, lyd kun for gruppebeskeder (Blizzard spiller selv en
   ved whispers), "(N new)" ved flere fra samme samtale. I kamp samles alt til én toast bagefter.
 - "New group"-dialogen (UI/NewGroup.lua) bruges også til "Edit group".
 - Shift-klik på et item, mens skrivefeltet har fokus, sætter linket ind (post-hook på
   `ChatFrameUtil.InsertLink`). **Ikke set i spillet.**
-- `/huddle debug demo` laver en lokal demo-gruppe og en demo-whisper (sendes aldrig), så vinduet kan
-  prøves alene; `/huddle debug demo off` fjerner dem.
+- `/wowsenger debug demo` laver en lokal demo-gruppe og en demo-whisper (sendes aldrig), så vinduet kan
+  prøves alene; `/wowsenger debug demo off` fjerner dem.
 
-## 9. Gemt data (SavedVariables `HuddleDB`, pr. konto)
+## 9. Gemt data (SavedVariables `WowsengerDB`, pr. konto)
 
-Beskrevet øverst i `Huddle/Data.lua`: `chars` (egne karakterer), `groups` (med `members`, `former`,
-`ver`, `by`, `floor`, `seq`), `messages`, `whispers`, `unread`, `peers` (klasse, har Huddle), `trace`
+Beskrevet øverst i `Wowsenger/Data.lua`: `chars` (egne karakterer), `groups` (med `members`, `former`,
+`ver`, `by`, `floor`, `seq`), `messages`, `whispers`, `unread`, `peers` (klasse, har Wowsenger), `trace`
 (fejlsøgning: kun typer og navne, aldrig beskedtekst), `settings`.
 
 ## 10. Test
 
 - `python tools/sim.py` (lupa): hver klient er sin egen Lua-runtime med den rigtige addon-kode;
   verden leverer addon-whispers og whispers, svarer "No player named" for offline spillere, og
-  logout/login gemmer og læser HuddleDB. Hver fil kører i et miljø, der fejler ved skrivning til
+  logout/login gemmer og læser WowsengerDB. Hver fil kører i et miljø, der fejler ved skrivning til
   fremmede globaler (taint). AceComm er en stub (deling af lange beskeder testes ikke).
 - 21 scenarier: oprettelse og live-beskeder, indhentning via et andet medlem, tilføjet mens offline,
   "has come online", ikke-medlemmer og forfalskninger, fjernet, forlad, kamp-kø, whispers og secret
@@ -171,5 +171,5 @@ Beskrevet øverst i `Huddle/Data.lua`: `chars` (egne karakterer), `groups` (med 
   500-grænsen, globaler/.toc, ukendte events, minimap/slash, alt-indmelding, sent medlem efter oprydning,
   Battle.net-whispers.
 - Mutationstjek 2026-11-21: 8 rettelser fjernet én ad gangen; hver gang fejlede den tilhørende test.
-- Rigtig klient: Forever. `/huddle debug ping <navn>` (svar = "pong from ..."), `/huddle status`, og
-  `HuddleDB.trace` i `_forever_\WTF\Account\<konto>\SavedVariables\Huddle.lua`.
+- Rigtig klient: Forever. `/wowsenger debug ping <navn>` (svar = "pong from ..."), `/wowsenger status`, og
+  `WowsengerDB.trace` i `_forever_\WTF\Account\<konto>\SavedVariables\Wowsenger.lua`.

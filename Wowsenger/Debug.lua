@@ -1,4 +1,4 @@
--- Huddle – fejlsøgning og demo (så vinduet kan prøves alene, uden venner online).
+-- Wowsenger – fejlsøgning og demo (så vinduet kan prøves alene, uden venner online).
 local _, ns = ...
 
 local Compat = ns.Compat
@@ -34,7 +34,7 @@ function Debug.Demo()
 	}
 	ns.DB.unread["g:" .. DEMO_GID] = 2
 	ns.DB.unread["w:Anna-Demo"] = 1
-	ns.Print("demo group and whisper added. Remove them with /huddle debug demo off.")
+	ns.Print("demo group and whisper added. Remove them with /wowsenger debug demo off.")
 	ns.Window:Open()
 	ns.Toast:Notify("g:" .. DEMO_GID, "Anna-Demo", "Great, see you at the entrance", true)
 end

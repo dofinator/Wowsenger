@@ -1,4 +1,4 @@
--- Huddle – fælles UI-hjælpere: rammer, rullelister, ja/nej-boks, navne og tekster.
+-- Wowsenger – fælles UI-hjælpere: rammer, rullelister, ja/nej-boks, navne og tekster.
 -- Ingen Blizzard-popups (StaticPopup/EasyMenu): på Mainline/Forever giver addon-kode i dem "taint"
 -- (lært i Grudge 0.1.0). Derfor egne små vinduer her og i Menu.lua.
 local _, ns = ...
@@ -105,7 +105,7 @@ local scrollCount = 0
 function UI.ScrollList(parent, rows, rowHeight, make, render)
 	scrollCount = scrollCount + 1
 	local list = { rows = {}, items = {} }
-	local scroll = CreateFrame("ScrollFrame", "HuddleScroll" .. scrollCount, parent, "FauxScrollFrameTemplate")
+	local scroll = CreateFrame("ScrollFrame", "WowsengerScroll" .. scrollCount, parent, "FauxScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
 	scroll:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -22, 0)
 	list.scroll = scroll
@@ -147,7 +147,7 @@ end
 local confirm
 function UI.Confirm(text, yesText, onYes)
 	if not confirm then
-		confirm = CreateFrame("Frame", "HuddleConfirm", UIParent, "BackdropTemplate")
+		confirm = CreateFrame("Frame", "WowsengerConfirm", UIParent, "BackdropTemplate")
 		confirm:SetSize(320, 96)
 		confirm:SetPoint("TOP", UIParent, "TOP", 0, -160)
 		confirm:SetFrameStrata("DIALOG")
@@ -162,7 +162,7 @@ function UI.Confirm(text, yesText, onYes)
 		confirm.no = UI.Button(confirm, CANCEL or "Cancel", 110)
 		confirm.no:SetPoint("BOTTOMLEFT", confirm, "BOTTOM", 4, 16)
 		confirm.no:SetScript("OnClick", function() confirm:Hide() end)
-		if UISpecialFrames then table.insert(UISpecialFrames, "HuddleConfirm") end
+		if UISpecialFrames then table.insert(UISpecialFrames, "WowsengerConfirm") end
 	end
 	confirm.text:SetText(text)
 	confirm.yes:SetText(yesText or YES or "Yes")

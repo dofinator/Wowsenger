@@ -1,4 +1,4 @@
--- Huddle – alle klient-afhængige WoW-kald samles her.
+-- Wowsenger – alle klient-afhængige WoW-kald samles her.
 -- Mål-klient: WoW Forever (Mainline-API med Midnights "secret values"). Testklient bagefter: Retail.
 -- Ingen kald uden for denne fil må antage, at en værdi kan læses.
 local _, ns = ...
@@ -22,7 +22,7 @@ end
 local Safe = Compat.Safe
 
 ------------------------------------------------------------------------
--- Navne. Huddle bruger altid "Navn-Realm" internt (venner kan være på andre realms).
+-- Navne. Wowsenger bruger altid "Navn-Realm" internt (venner kan være på andre realms).
 ------------------------------------------------------------------------
 local myRealm
 function Compat.MyRealm()
@@ -195,7 +195,7 @@ function Compat.ColorName(name, class)
 end
 
 -- Kun InCombatLockdown styrer noget (lært i GuildCrafters: C_ChatInfo-lockdown-funktionerne svarer
--- "true" uden for kamp i Retail 12.1). De andre vises kun i /huddle debug.
+-- "true" uden for kamp i Retail 12.1). De andre vises kun i /wowsenger debug.
 function Compat.InCombat()
 	return InCombatLockdown ~= nil and InCombatLockdown() and true or false
 end
@@ -264,6 +264,12 @@ function Compat.OnlineGuildMembers()
 		end
 	end
 	return out
+end
+
+-- Sand, også mens addonen stadig indlæses (C_AddOns svarer loadedOrLoading først).
+function Compat.IsAddOnLoaded(name)
+	local fn = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+	return fn and fn(name) and true or false
 end
 
 function Compat.GetAddOnVersion(addonName)

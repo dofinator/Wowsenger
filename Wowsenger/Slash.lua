@@ -1,19 +1,19 @@
--- Huddle – /huddle (/hd). Vinduet åbnes normalt med minimap-knappen; kommandoerne er til resten.
+-- Wowsenger – /wowsenger (/ws). Vinduet åbnes normalt med minimap-knappen; kommandoerne er til resten.
 local _, ns = ...
 
 local function Help()
 	ns.Print("commands:")
 	for _, line in ipairs({
-		"/huddle – open or close the Huddle window",
-		"/huddle minimap – show or hide the minimap button",
-		"/huddle toast – turn the new-message popup on or off",
-		"/huddle toast test – show a sample popup (drag it where you want it)",
-		"/huddle toast reset – put the popup back at the top of the screen",
-		"/huddle sound – turn the group message sound on or off",
-		"/huddle status – groups, who is online, what the game tells the addon",
-		"/huddle debug – print what Huddle sends and receives",
-		"/huddle debug ping <name> – check that addon messages reach someone",
-		"/huddle debug demo [off] – a local demo group to try the window alone",
+		"/wowsenger – open or close the Wowsenger window",
+		"/wowsenger minimap – show or hide the minimap button",
+		"/wowsenger toast – turn the new-message popup on or off",
+		"/wowsenger toast test – show a sample popup (drag it where you want it)",
+		"/wowsenger toast reset – put the popup back at the top of the screen",
+		"/wowsenger sound – turn the group message sound on or off",
+		"/wowsenger status – groups, who is online, what the game tells the addon",
+		"/wowsenger debug – print what Wowsenger sends and receives",
+		"/wowsenger debug ping <name> – check that addon messages reach someone",
+		"/wowsenger debug demo [off] – a local demo group to try the window alone",
 	}) do
 		DEFAULT_CHAT_FRAME:AddMessage("  " .. line)
 	end
@@ -24,9 +24,12 @@ local function OnOff(key, label)
 	ns.Print(label .. " " .. (ns.db[key] and "on" or "off") .. ".")
 end
 
-SLASH_HUDDLE1 = "/huddle"
-SLASH_HUDDLE2 = "/hd"
-SlashCmdList.HUDDLE = function(msg)
+-- Kører den anden kopi (Wowsenger/WowsengerTest), er /wowsenger dens.
+if ns.inactive then return end
+
+SLASH_WOWSENGER1 = "/wowsenger"
+SLASH_WOWSENGER2 = "/ws"
+SlashCmdList.WOWSENGER = function(msg)
 	msg = strtrim(msg or "")
 	local cmd, rest = msg:match("^(%S*)%s*(.-)$")
 	cmd = (cmd or ""):lower()

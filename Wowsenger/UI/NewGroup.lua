@@ -1,4 +1,4 @@
--- Huddle – dialogen "New group" / "Edit group" (brugerens valg 2026-11-21: dialog med afkrydsning).
+-- Wowsenger – dialogen "New group" / "Edit group" (brugerens valg 2026-11-21: dialog med afkrydsning).
 --
 --   +- New group --------------------+
 --   | Name  [Raid group          ]   |
@@ -121,7 +121,7 @@ function NewGroup:AddByName()
 end
 
 local function Create()
-	frame = CreateFrame("Frame", "HuddleNewGroup", UIParent, "BackdropTemplate")
+	frame = CreateFrame("Frame", "WowsengerNewGroup", UIParent, "BackdropTemplate")
 	frame:SetSize(320, 390)
 	frame:SetPoint("CENTER", 0, 40)
 	frame:SetFrameStrata("DIALOG")
@@ -132,7 +132,7 @@ local function Create()
 	frame:SetScript("OnDragStart", frame.StartMoving)
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 	UI.Backdrop(frame, true)
-	if UISpecialFrames then table.insert(UISpecialFrames, "HuddleNewGroup") end
+	if UISpecialFrames then table.insert(UISpecialFrames, "WowsengerNewGroup") end
 
 	frame.title = UI.Text(frame, "GameFontNormal")
 	frame.title:SetPoint("TOP", 0, -18)
