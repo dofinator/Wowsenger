@@ -184,6 +184,38 @@ function Compat.ItemRef(link, text, button, frame)
 	if SetItemRef then pcall(SetItemRef, link, text, button, frame) end
 end
 
+-- Mindste/største størrelse, når vinduet trækkes i hjørnet. Mainline: SetResizeBounds, Classic: SetMinResize.
+function Compat.SetResizeBounds(frame, minW, minH, maxW, maxH)
+	if frame.SetResizeBounds then
+		pcall(frame.SetResizeBounds, frame, minW, minH, maxW, maxH)
+	elseif frame.SetMinResize then
+		pcall(frame.SetMinResize, frame, minW, minH)
+		if frame.SetMaxResize then pcall(frame.SetMaxResize, frame, maxW, maxH) end
+	end
+end
+
+-- Findes atlasset i denne klient? Kun til udseende (der er altid en fil-tekstur som reserve).
+function Compat.HasAtlas(name)
+	if not (C_Texture and C_Texture.GetAtlasInfo) then return false end
+	local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+	return ok and Compat.Safe(info) ~= nil
+end
+
+-- Knap-grafik som Blizzards egne små røde knapper: Mainline/Forever-atlas (fx "RedButton-Condense",
+-- verdenskortets formindsk-knap), ellers de gamle filer (fx "Interface\Buttons\UI-Panel-SmallerButton").
+function Compat.ButtonArt(button, atlas, file)
+	if atlas and Compat.HasAtlas(atlas) then
+		button:SetNormalAtlas(atlas)
+		button:SetPushedAtlas(Compat.HasAtlas(atlas .. "-pressed") and atlas .. "-pressed" or atlas)
+		if Compat.HasAtlas("RedButton-Highlight") then button:SetHighlightAtlas("RedButton-Highlight", "ADD") end
+		return "atlas"
+	end
+	button:SetNormalTexture(file .. "-Up")
+	button:SetPushedTexture(file .. "-Down")
+	button:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight", "ADD")
+	return "file"
+end
+
 -- Klassefarvet navn.
 function Compat.ColorName(name, class)
 	local colors = CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS

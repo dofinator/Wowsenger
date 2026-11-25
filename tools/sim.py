@@ -201,6 +201,8 @@ class Client:
                 out.append("# " + it.text)
             elif it.kind == "new":
                 out.append("+ New group")
+            elif it.kind == "undo":
+                out.append("undo")
             else:
                 out.append(it.conv)
         return out
@@ -928,6 +930,155 @@ def _():
     w.step(1)
     last = b.whisper_log(a.battletag)[-1]
     check(last["hidden"] and last["x"] is None, f"secret tekst gemmes ikke: {last}")
+
+
+@scenario("26. lettere at bruge: x sletter + Undo, fold sammen til titellinje, træk større, markør i feltet")
+def _():
+    w = World()
+    a = w.login("Anna")
+    me = "Anna-Spineshatter"
+    line = [0]
+
+    def whisper(who, text):
+        line[0] += 1
+        a.fire("CHAT_MSG_WHISPER", text, who, "", "", "", "", 0, 0, "", 0, line[0], "Player-1-" + who)
+        w.step(0.2)
+
+    for who in ("Bob", "Cleo", "Dan"):
+        whisper(who, "hi from " + who)
+    bob, cleo, dan = ("w:%s-Spineshatter" % n for n in ("Bob", "Cleo", "Dan"))
+
+    def row_for(conv):
+        rows, visible = a.call("Window", "Rows")
+        for i in range(1, visible + 1):
+            r = rows[i]
+            if r is not None and r.item is not None and r.item.conv == conv:
+                return r
+        return None
+
+    def undo_row():
+        rows, visible = a.call("Window", "Rows")
+        for i in range(1, visible + 1):
+            r = rows[i]
+            if r is not None and r.item is not None and r.item.kind == "undo":
+                return r
+        return None
+
+    # Markør i skrivefeltet: når man klikker på en samtale i listen, og når toasten åbner en.
+    a.open(bob)
+    check(a.call("Window", "InputFocused"), "Open(samtale) sætter markøren i feltet")
+    a.mock.focus = None
+    r = row_for(cleo)
+    r.Click(r, "LeftButton")
+    check(a.call("Window", "Selected") == cleo, "klik vælger samtalen")
+    check(a.call("Window", "InputFocused"), "klik på en samtale sætter markøren i feltet")
+
+    # x kun på person-rækker, kun mens musen er over.
+    r = row_for(dan)
+    check(not r["del"].shown, "x skjult uden mus")
+    r.Enter(r)
+    check(r["del"].shown and not r.badge.shown, "x vises (og ulæst-tallet skjules) ved hover")
+    r.Leave(r)
+    check(not r["del"].shown and r.badge.shown, "x væk igen, når musen går")
+    rows, visible = a.call("Window", "Rows")
+    hdr = rows[1]
+    hdr.Enter(hdr)
+    check(not hdr["del"].shown, "intet x på overskriften 'Groups'")
+    hdr.Leave(hdr)
+
+    # Slet Dan med x'et (han har 1 ulæst): væk med det samme, ingen bekræftelse, Undo står i listen.
+    check(a.unread(dan) == 1, "Dan har 1 ulæst")
+    r = row_for(dan)
+    r.Enter(r)
+    d = r["del"]
+    d.Click(d)
+    check(a.db().whispers["Dan-Spineshatter"] is None, "Dans samtale slettet")
+    check(a.confirm() is None, "ingen bekræftelse")
+    check(dan not in a.list_items() and a.list_items()[-1] == "undo", f"liste: {a.list_items()}")
+    check(a.unread(dan) == 0, "ulæst væk med samtalen")
+    check("Deleted Dan." in strip(undo_row().label.text), f"undo-tekst: {strip(undo_row().label.text)}")
+    # Slet Cleo (den valgte) via højreklik-menuen: også uden bekræftelse; Undo samler begge.
+    a.menu_click(cleo, "Delete conversation")
+    check(a.confirm() is None and a.call("Window", "Selected") is None, "menu-slet uden bekræftelse")
+    check("Deleted 2 conversations." in strip(undo_row().label.text), f"undo-tekst: {strip(undo_row().label.text)}")
+    # Dan skriver igen, mens Undo står der: Undo lægger det gamle foran det nye.
+    whisper("Dan", "you there?")
+    u = undo_row()
+    u.Click(u, "LeftButton")
+    check([e["x"] for e in a.whisper_log("Dan-Spineshatter")] == ["hi from Dan", "you there?"],
+          f"Dan efter Undo: {a.whisper_log('Dan-Spineshatter')}")
+    check(a.whisper_log("Cleo-Spineshatter") != [], "Cleo tilbage")
+    check(a.unread(dan) == 2, f"ulæst tilbage og lagt sammen: {a.unread(dan)}")
+    check(a.call("Window", "Selected") == cleo, "den valgte samtale er valgt igen")
+    check("undo" not in a.list_items(), "Undo væk efter brug")
+    # Uden Undo: væk efter 10 s, også efter /reload.
+    a.call("Window", "Delete", bob)
+    w.step(5)
+    check("undo" in a.list_items(), "Undo står der stadig efter 5 s")
+    w.step(6)
+    check("undo" not in a.list_items(), "Undo væk efter 10 s")
+    w.logout(a)
+    a = w.login("Anna")
+    check(a.db().whispers["Bob-Spineshatter"] is None, "slettet for altid efter reload")
+    check(a.call("Window", "Delete", "g:nope") is False, "grupper slettes ikke med x")
+
+    # Fold sammen: titellinjen med antal nye; beskeder giver ulæst + toast; minimap-klik folder ud.
+    a.open(cleo)
+    a.call("Window", "Fold")
+    check(not a.call("Window", "IsShown") and a.call("Window", "IsFolded"), "foldet sammen")
+    check(a.db().settings.folded is True, "huskes")
+    whisper("Cleo", "ping")
+    check(a.unread(cleo) == 1, "ulæst, mens den er foldet (samtalen ses ikke)")
+    check(a.toast() is not None, "toast, mens den er foldet")
+    total = sum(v for _, v in items(a.db().unread))
+    check(total >= 2 and strip(a.call("Window", "BarText")) == "Wowsenger  (%d new)" % total,
+          f"titellinje: {strip(a.call('Window', 'BarText'))}")
+    bar = a.lua.globals().WowsengerBar
+    bar.left, bar.top = 120, 700   # titellinjen er trukket hen et andet sted
+    a.mock.ldb["Wowsenger"].OnClick()
+    pt = list(a.call("Window", "Frame").GetPoint(a.call("Window", "Frame")))
+    check(pt[0] == "TOPLEFT" and pt[3:] == [120, 700], f"folder ud, hvor titellinjen står: {pt}")
+    check(a.call("Window", "IsShown") and not a.call("Window", "IsFolded"), "minimap-klik folder ud")
+    check(a.unread(cleo) == 0 and a.db().settings.folded is None, "ud: læst og ikke længere foldet")
+    a.call("Window", "Fold")
+    w.logout(a)
+    a = w.login("Anna")
+    check(a.call("Window", "IsFolded") and not a.call("Window", "IsShown"), "foldet igen efter reload")
+    a.lua.eval("function() WowsengerBar.close.scripts.OnClick(WowsengerBar.close) end")()
+    check(not a.call("Window", "IsFolded") and not a.call("Window", "IsShown"), "X på titellinjen lukker")
+    check(a.db().settings.folded is None, "lukket = ikke foldet næste gang")
+    a.call("Window", "Fold")
+    bar = a.lua.globals().WowsengerBar
+    bar.scripts.OnClick(bar, "LeftButton")
+    check(a.call("Window", "IsShown"), "klik på titellinjen folder ud")
+
+    # Træk større: flere rækker i listen, størrelsen huskes og holdes inden for grænserne.
+    for i in range(40):
+        whisper("P%02d" % i, "hey")
+    a.open()
+    rows, visible = a.call("Window", "Rows")
+    small = visible
+    f = a.call("Window", "Frame")
+    f.SetSize(f, 800, 640)
+    a.lua.eval("function() WowsengerFrame.grip.scripts.OnMouseUp(WowsengerFrame.grip) end")()
+    rows, visible = a.call("Window", "Rows")
+    check(visible == (640 - 42) // 18 and visible > small, f"rækker {small} -> {visible}")
+    shown = sum(1 for i in range(1, visible + 1) if rows[i].shown)
+    check(shown == visible, f"alle {visible} rækker bruges: {shown}")
+    s = a.db().settings.size
+    check((s.w, s.h) == (800, 640), f"størrelse gemt: {s.w}x{s.h}")
+    f.SetSize(f, 3000, 100)
+    a.call("Window", "SaveSize")
+    s = a.db().settings.size
+    check((s.w, s.h) == (1400, 260), f"grænser: {s.w}x{s.h}")
+    f.SetSize(f, 800, 640)
+    a.call("Window", "SaveSize")
+    w.logout(a)
+    a = w.login("Anna")
+    a.open()
+    f = a.call("Window", "Frame")
+    check((f.width, f.height) == (800, 640), f"størrelse efter reload: {f.width}x{f.height}")
+    check(a.call("Window", "Rows")[1] == (640 - 42) // 18, "rækker passer til den gemte størrelse")
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,10 @@ Mål: WoW Forever (derefter Retail). Status: v0.1.0, kun testet i simulatoren.
 - Klik på en samtale for at læse og skrive. Whispers kommer også i Wowsenger (og stadig i den normale chat),
   også de blå Battle.net-whispers (vist under vennens BattleTag).
 - Højreklik på en samtale: Edit group, Leave group, Invite to party, Delete conversation.
+- Hold musen over en person i listen, og klik på krydset for at slette samtalen; "Undo" står nederst i
+  listen et par sekunder.
+- Knappen ved siden af X folder vinduet sammen til en titellinje med antal nye beskeder; klik på den
+  for at folde ud. Træk i hjørnet nederst til højre for at gøre vinduet større.
 - En ny besked, mens vinduet er lukket, giver en lille boks øverst på skærmen. Klik åbner samtalen;
   træk den, hvis den skal stå et andet sted (`/wowsenger toast test` viser en prøve, `/wowsenger toast reset`).
 

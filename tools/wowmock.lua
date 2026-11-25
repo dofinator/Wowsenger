@@ -155,18 +155,24 @@ function Frame.GetChecked(o) return o.checked end
 function Frame.SetPoint(o, ...) table.insert(o.points, { ... }) end
 function Frame.ClearAllPoints(o) o.points = {} end
 function Frame.GetPoint(o) local p = o.points[1] or {}; return p[1], p[2], p[3], p[4], p[5] end
-function Frame.SetSize(o, w, h) o.width, o.height = w, h end
+function Frame.SetSize(o, w, h)
+	o.width, o.height = w, h
+	if o.scripts.OnSizeChanged then o.scripts.OnSizeChanged(o, w, h) end
+end
 function Frame.SetWidth(o, w) o.width = w end
 function Frame.SetHeight(o, h) o.height = h end
+function Frame.GetLeft(o) return o.left end
+function Frame.GetTop(o) return o.top end
 function Frame.GetWidth(o) return o.width or 300 end
 function Frame.GetHeight(o) return o.height or 300 end
 function Frame.GetEffectiveScale() return 1 end
 function Frame.SetFrameStrata(o, s) o.strata = s end
-function Frame.IsMouseOver() return false end
+function Frame.IsMouseOver(o) return o.mouseOver or false end
 function Frame.CreateFontString(o) local fs = NewObject("FontString"); fs.parent = o; table.insert(o.children, fs); return fs end
 function Frame.CreateTexture(o) local t = NewObject("Texture"); t.parent = o; return t end
 function Frame.Click(o, button) if o.scripts.OnClick then o.scripts.OnClick(o, button or "LeftButton") end end
-function Frame.Enter(o) if o.scripts.OnEnter then o.scripts.OnEnter(o) end end
+function Frame.Enter(o) o.mouseOver = true; if o.scripts.OnEnter then o.scripts.OnEnter(o) end end
+function Frame.Leave(o) o.mouseOver = false; if o.scripts.OnLeave then o.scripts.OnLeave(o) end end
 -- ScrollingMessageFrame
 function Frame.AddMessage(o, text) o.msgs = o.msgs or {}; table.insert(o.msgs, text) end
 function Frame.Clear(o) o.msgs = {} end
