@@ -1,15 +1,19 @@
 -- Wowsenger – hovedvinduet (brugerens valg 2026-11-21: liste til venstre).
 --
---   +- Wowsenger ------------------------------------------[X]+
+--   +- Wowsenger ----------------------------------------[_][X]+
 --   | Groups        | Raid group   4 members, 2 online      |
 --   |  Raid     (3) | -- While you were offline --          |
 --   |  Alts         | 20:01 Anna: Tuesday 20:00?            |
 --   | + New group   | 20:03 Bob: works for me               |
 --   | People        | 20:05 You: great                      |
---   |  Anna     (1) |                                       |
---   |  Bob          | [ Message Raid group...            ]  |
+--   |  Anna       x | (x = slet, vises når musen er over)   |
+--   | Deleted Bob. Undo                                     |
+--   |  Bob          | [ Message Raid group...            ] //|
 --   +------------------------------------------------------+
 -- Højreklik på en samtale = menu, hover = tooltip (medlemmer, online).
+-- Brugerens valg 2026-11-25 (fra mockups): x på person-rækken sletter med det samme + "Undo" i 10 s,
+-- "_" folder vinduet sammen til en titellinje med antal nye, vinduet kan trækkes større i hjørnet,
+-- og markøren står i skrivefeltet, når man vælger en samtale.
 local _, ns = ...
 
 local Compat = ns.Compat
@@ -22,11 +26,26 @@ local Window = {}
 ns.Window = Window
 
 local WIDTH, HEIGHT = 620, 410
+local MIN_W, MIN_H, MAX_W, MAX_H = 470, 260, 1400, 1000
 local LEFT_W = 160
 local ROW_H = 18
-local frame, list, smf, input, header, sub, empty
+local BAR_H = 28
+local UNDO_FOR = 10
+local frame, body, list, smf, input, header, sub, empty, bar
 local selected -- "g:<gid>" / "w:<navn>"
 local lines = {} -- de viste linjer (til test)
+local undo, undoToken -- slettede samtaler, der kan fortrydes ({ removed, ... })
+
+local function RowsFor(height)
+	return math.floor((height - 42) / ROW_H)
+end
+
+local function Clamp(v, lo, hi)
+	v = tonumber(v) or lo
+	if v < lo then return lo end
+	if v > hi then return hi end
+	return math.floor(v + 0.5)
+end
 
 ------------------------------------------------------------------------
 -- Listen til venstre
@@ -44,6 +63,7 @@ local function Items()
 			items[#items + 1] = { kind = "conv", conv = "w:" .. name }
 		end
 	end
+	if undo then items[#items + 1] = { kind = "undo" } end
 	return items
 end
 
@@ -51,6 +71,24 @@ local function Badge(conv)
 	local n = Data:Unread(conv)
 	if n > 0 then return ("|cffff4040%d|r"):format(n) end
 	return ""
+end
+
+local function CanDelete(item)
+	return item ~= nil and item.kind == "conv" and item.conv:find("^w:") ~= nil
+end
+
+-- x'et vises kun på den person-række, musen er over (og så skjules ulæst-tallet bag det).
+local function SetHover(row, on)
+	local show = on and CanDelete(row.item) or false
+	row.del:SetShown(show)
+	row.badge:SetShown(not show)
+end
+
+local function UndoText()
+	if #undo == 1 then
+		return ("Deleted %s."):format(Compat.ShortName(undo[1].name))
+	end
+	return ("Deleted %d conversations."):format(#undo)
 end
 
 local function RenderRow(row, item)
@@ -64,6 +102,10 @@ local function RenderRow(row, item)
 		row.label:SetFontObject("GameFontHighlightSmall")
 		row.label:SetText(UI.GRAY .. "+ New group|r")
 		row.label:SetPoint("LEFT", 12, 0)
+	elseif item.kind == "undo" then
+		row.label:SetFontObject("GameFontHighlightSmall")
+		row.label:SetText(UI.GRAY .. UndoText() .. "|r  " .. UI.YELLOW .. "Undo|r")
+		row.label:SetPoint("LEFT", 4, 0)
 	else
 		row.label:SetFontObject("GameFontHighlightSmall")
 		local g = item.conv:match("^g:(.+)$") and Groups:Get(item.conv:sub(3))
@@ -74,6 +116,8 @@ local function RenderRow(row, item)
 		row.badge:SetText(Badge(item.conv))
 		if item.conv == selected then row:LockHighlight() end
 	end
+	-- Rykker en ny række op under musen efter en sletning, får den x'et med det samme.
+	SetHover(row, row:IsMouseOver())
 end
 
 local function GroupTooltip(gid)
@@ -116,6 +160,45 @@ local function RowTooltip(row)
 	GameTooltip:Show()
 end
 
+-- Sletter en 1:1-samtale med det samme; "Undo" står nederst i listen i 10 s. Flere sletninger lige
+-- efter hinanden samles i én Undo, der bringer dem alle tilbage.
+function Window:Delete(conv)
+	local key = conv and conv:match("^w:(.+)$")
+	if not key then return false end
+	local removed = Whispers:Delete(key)
+	if not removed then return false end
+	removed.wasSelected = selected == conv
+	if selected == conv then selected = nil end
+	undo = undo or {}
+	table.insert(undo, removed)
+	local token = {}
+	undoToken = token
+	C_Timer.After(UNDO_FOR, function()
+		if undoToken ~= token then return end
+		undo, undoToken = nil, nil
+		Window:Refresh()
+	end)
+	ns.Debug("conversation deleted (%d to undo)", #undo)
+	self:Refresh()
+	ns.Changed("unread")
+	return true
+end
+
+function Window:Undo()
+	if not undo then return false end
+	local restored = undo
+	undo, undoToken = nil, nil
+	for _, removed in ipairs(restored) do
+		Whispers:Restore(removed)
+		if removed.wasSelected then selected = "w:" .. removed.name end
+	end
+	self:Refresh()
+	ns.Changed("unread")
+	return true
+end
+
+function Window:CanUndo() return undo ~= nil end
+
 function Window:MenuFor(conv)
 	local kind, key = conv:match("^(%a):(.+)$")
 	if kind == "g" then
@@ -137,14 +220,8 @@ function Window:MenuFor(conv)
 	if not Compat.IsBNetKey(key) then
 		items[#items + 1] = { text = "Invite to party", fn = function() Compat.Invite(key) end }
 	end
-	items[#items + 1] = { text = "Delete conversation", fn = function()
-			UI.Confirm(("Delete your history with %s?"):format(Compat.ShortName(key)), DELETE or "Delete", function()
-				ns.DB.whispers[key] = nil
-				Data:ClearUnread(conv)
-				if selected == conv then selected = nil end
-				Window:Refresh()
-			end)
-		end }
+	-- Ingen bekræftelse: Undo i listen fortryder (samme som x'et på rækken).
+	items[#items + 1] = { text = "Delete conversation", fn = function() Window:Delete(conv) end }
 	return items
 end
 
@@ -153,6 +230,8 @@ local function OnRowClick(row, button)
 	if not item then return end
 	if item.kind == "new" then
 		ns.NewGroup:Open()
+	elseif item.kind == "undo" then
+		Window:Undo()
 	elseif item.kind == "conv" then
 		if button == "RightButton" then
 			local items = Window:MenuFor(item.conv)
@@ -161,6 +240,50 @@ local function OnRowClick(row, button)
 			Window:Select(item.conv)
 		end
 	end
+end
+
+local function MakeRow(row)
+	row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	row.label = UI.Text(row, "GameFontHighlightSmall")
+	row.label:SetPoint("LEFT", 12, 0)
+	row.label:SetPoint("RIGHT", -24, 0)
+	row.label:SetJustifyH("LEFT")
+	if row.label.SetWordWrap then row.label:SetWordWrap(false) end
+	row.badge = UI.Text(row, "GameFontHighlightSmall")
+	row.badge:SetPoint("RIGHT", -2, 0)
+	-- Blizzards grå "Pass"-kryds fra loot-rammen: findes i alle klienter.
+	row.del = CreateFrame("Button", nil, row)
+	row.del:SetSize(16, 16)
+	row.del:SetPoint("RIGHT", 0, 0)
+	row.del:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+	row.del:SetPushedTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Down")
+	row.del:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight", "ADD")
+	row.del:SetScript("OnClick", function()
+		if CanDelete(row.item) then Window:Delete(row.item.conv) end
+	end)
+	row.del:SetScript("OnEnter", function(self)
+		SetHover(row, true)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:AddLine("Delete conversation")
+		GameTooltip:AddLine("Undo stays below the list for a few seconds", 0.8, 0.8, 0.8)
+		GameTooltip:Show()
+	end)
+	row.del:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+		SetHover(row, row:IsMouseOver())
+	end)
+	row.del:Hide()
+	row:SetScript("OnClick", OnRowClick)
+	row:SetScript("OnEnter", function(self)
+		SetHover(self, true)
+		RowTooltip(self)
+	end)
+	row:SetScript("OnLeave", function(self)
+		GameTooltip:Hide()
+		-- Musen kan være gået ind på x'et (et barn af rækken): så skal det blive stående.
+		SetHover(self, self.del:IsMouseOver())
+	end)
 end
 
 ------------------------------------------------------------------------
@@ -250,6 +373,99 @@ function Window:SendInput()
 end
 
 ------------------------------------------------------------------------
+-- Plads og størrelse
+------------------------------------------------------------------------
+-- Gemmer øverste venstre hjørne (så titellinjen og vinduet står samme sted), ellers ankerpunktet.
+local function SavePosition(f)
+	local left, top = f:GetLeft(), f:GetTop()
+	if left and top then
+		ns.db.window = { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top }
+	else
+		local point, _, relPoint, x, y = f:GetPoint(1)
+		ns.db.window = { point = point, relPoint = relPoint, x = x, y = y }
+	end
+end
+
+local function Place(f)
+	f:ClearAllPoints()
+	local pos = ns.db.window
+	if pos and pos.point then
+		f:SetPoint(pos.point, UIParent, pos.relPoint or pos.point, pos.x or 0, pos.y or 0)
+	else
+		f:SetPoint("CENTER")
+	end
+end
+
+local function Layout(height)
+	if not list then return end
+	list:SetVisibleRows(RowsFor(height))
+	list:Update()
+end
+
+function Window:SaveSize()
+	if not frame then return end
+	ns.db.size = { w = Clamp(frame:GetWidth(), MIN_W, MAX_W), h = Clamp(frame:GetHeight(), MIN_H, MAX_H) }
+	SavePosition(frame)
+end
+
+------------------------------------------------------------------------
+-- Foldet sammen: kun en titellinje med antal nye (brugerens valg 2026-11-25)
+------------------------------------------------------------------------
+local function UpdateBar()
+	if not bar then return end
+	local n = Data:TotalUnread()
+	local text = "Wowsenger"
+	if n > 0 then text = text .. ("  |cffff4040(%d new)|r"):format(n) end
+	bar.title:SetText(text)
+	bar:SetWidth(frame and frame:GetWidth() or WIDTH)
+end
+
+local function CreateBar()
+	bar = CreateFrame("Button", "WowsengerBar", UIParent, "BackdropTemplate")
+	bar:SetHeight(BAR_H)
+	bar:SetFrameStrata("HIGH")
+	bar:SetClampedToScreen(true)
+	bar:SetMovable(true)
+	bar:EnableMouse(true)
+	bar:RegisterForDrag("LeftButton")
+	bar:RegisterForClicks("LeftButtonUp")
+	UI.Backdrop(bar)
+	bar.title = UI.Text(bar, "GameFontNormal")
+	bar.title:SetPoint("LEFT", 12, 0)
+	bar:SetScript("OnDragStart", function(self)
+		self.dragging = true
+		self:StartMoving()
+	end)
+	bar:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+		SavePosition(self)
+		-- Spillet sender et klik, når man slipper efter et træk; det skal ikke folde vinduet ud.
+		C_Timer.After(0, function() self.dragging = false end)
+	end)
+	bar:SetScript("OnClick", function(self)
+		if self.dragging then return end
+		Window:Unfold()
+	end)
+	bar:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		ns.Minimap.Tooltip(GameTooltip)
+		GameTooltip:Show()
+	end)
+	bar:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+	bar.close = CreateFrame("Button", nil, bar, "UIPanelCloseButton")
+	bar.close:SetSize(24, 24)
+	bar.close:SetPoint("RIGHT", -3, 0)
+	bar.close:SetScript("OnClick", function() Window:Close() end)
+	bar.expand = CreateFrame("Button", nil, bar)
+	bar.expand:SetSize(24, 24)
+	local art = Compat.ButtonArt(bar.expand, "RedButton-Expand", "Interface\\Buttons\\UI-Panel-BiggerButton")
+	bar.expand:SetPoint("RIGHT", bar.close, "LEFT", art == "file" and 4 or 0, 0)
+	bar.expand:SetScript("OnClick", function() Window:Unfold() end)
+	bar:Hide()
+end
+
+------------------------------------------------------------------------
 -- Opbygning
 ------------------------------------------------------------------------
 local function Create()
@@ -258,24 +474,21 @@ local function Create()
 		template = "BasicFrameTemplate"
 	end
 	frame = CreateFrame("Frame", "WowsengerFrame", UIParent, template)
-	frame:SetSize(WIDTH, HEIGHT)
+	local size = ns.db.size or {}
+	frame:SetSize(Clamp(size.w or WIDTH, MIN_W, MAX_W), Clamp(size.h or HEIGHT, MIN_H, MAX_H))
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
 	frame:SetMovable(true)
+	frame:SetResizable(true)
+	Compat.SetResizeBounds(frame, MIN_W, MIN_H, MAX_W, MAX_H)
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")
 	frame:SetScript("OnDragStart", frame.StartMoving)
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
-		local point, _, relPoint, x, y = self:GetPoint(1)
-		ns.db.window = { point = point, relPoint = relPoint, x = x, y = y }
+		SavePosition(self)
 	end)
-	local pos = ns.db.window
-	if pos and pos.point then
-		frame:SetPoint(pos.point, UIParent, pos.relPoint or pos.point, pos.x or 0, pos.y or 0)
-	else
-		frame:SetPoint("CENTER")
-	end
+	Place(frame)
 	local title = frame.TitleText
 	if not title then
 		title = UI.Text(frame, "GameFontHighlight")
@@ -284,28 +497,35 @@ local function Create()
 	title:SetText("Wowsenger")
 	if UISpecialFrames then table.insert(UISpecialFrames, "WowsengerFrame") end
 
+	-- "_" ved siden af X: fold sammen til titellinjen.
+	local fold = CreateFrame("Button", nil, frame)
+	fold:SetSize(24, 24)
+	local art = Compat.ButtonArt(fold, "RedButton-Condense", "Interface\\Buttons\\UI-Panel-SmallerButton")
+	if frame.CloseButton then
+		fold:SetPoint("RIGHT", frame.CloseButton, "LEFT", art == "file" and 4 or 0, 0)
+	else
+		fold:SetPoint("TOPRIGHT", -26, 0)
+	end
+	fold:SetScript("OnClick", function() Window:Fold() end)
+	fold:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:AddLine("Minimize")
+		GameTooltip:Show()
+	end)
+	fold:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	frame.fold = fold
+
+	body = CreateFrame("Frame", nil, frame)
+	body:SetAllPoints(frame)
+
 	-- Venstre: samtaler
-	local left = CreateFrame("Frame", nil, frame)
+	local left = CreateFrame("Frame", nil, body)
 	left:SetPoint("TOPLEFT", 10, -30)
 	left:SetPoint("BOTTOMLEFT", 10, 10)
 	left:SetWidth(LEFT_W)
-	local rows = math.floor((HEIGHT - 42) / ROW_H)
-	list = UI.ScrollList(left, rows, ROW_H, function(row)
-		row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-		row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-		row.label = UI.Text(row, "GameFontHighlightSmall")
-		row.label:SetPoint("LEFT", 12, 0)
-		row.label:SetPoint("RIGHT", -24, 0)
-		row.label:SetJustifyH("LEFT")
-		if row.label.SetWordWrap then row.label:SetWordWrap(false) end
-		row.badge = UI.Text(row, "GameFontHighlightSmall")
-		row.badge:SetPoint("RIGHT", -2, 0)
-		row:SetScript("OnClick", OnRowClick)
-		row:SetScript("OnEnter", RowTooltip)
-		row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-	end, RenderRow)
+	list = UI.ScrollList(left, RowsFor(frame:GetHeight()), ROW_H, MakeRow, RenderRow)
 
-	local divider = frame:CreateTexture(nil, "ARTWORK")
+	local divider = body:CreateTexture(nil, "ARTWORK")
 	divider:SetColorTexture(1, 1, 1, 0.15)
 	divider:SetWidth(1)
 	divider:SetPoint("TOPLEFT", left, "TOPRIGHT", 4, 0)
@@ -313,14 +533,15 @@ local function Create()
 
 	-- Højre: samtalen
 	local rightX = 10 + LEFT_W + 12
-	header = UI.Text(frame, "GameFontNormal")
+	header = UI.Text(body, "GameFontNormal")
 	header:SetPoint("TOPLEFT", rightX, -34)
-	sub = UI.Text(frame, "GameFontDisableSmall")
+	sub = UI.Text(body, "GameFontDisableSmall")
 	sub:SetPoint("LEFT", header, "RIGHT", 8, 0)
 
-	local headerHit = CreateFrame("Frame", nil, frame)
+	local headerHit = CreateFrame("Frame", nil, body)
 	headerHit:SetPoint("TOPLEFT", rightX, -30)
-	headerHit:SetSize(WIDTH - rightX - 14, 18)
+	headerHit:SetPoint("TOPRIGHT", -14, -30)
+	headerHit:SetHeight(18)
 	headerHit:EnableMouse(true)
 	headerHit:SetScript("OnEnter", function(self)
 		if not selected or not selected:find("^g:") then return end
@@ -330,7 +551,7 @@ local function Create()
 	end)
 	headerHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-	smf = CreateFrame("ScrollingMessageFrame", nil, frame)
+	smf = CreateFrame("ScrollingMessageFrame", nil, body)
 	smf:SetPoint("TOPLEFT", rightX, -56)
 	smf:SetPoint("BOTTOMRIGHT", -14, 40)
 	smf:SetFontObject(ChatFontNormal or GameFontHighlightSmall)
@@ -352,12 +573,13 @@ local function Create()
 		Compat.ItemRef(link, text, button, DEFAULT_CHAT_FRAME)
 	end)
 
-	empty = UI.Text(frame, "GameFontDisable")
-	empty:SetPoint("CENTER", frame, "CENTER", (LEFT_W + 12) / 2, 0)
+	empty = UI.Text(body, "GameFontDisable")
+	empty:SetPoint("CENTER", body, "CENTER", (LEFT_W + 12) / 2, 0)
 	empty:SetText("Pick a conversation, or create a group.")
 
-	input = UI.EditBox(frame, WIDTH - rightX - 20)
+	input = UI.EditBox(body, WIDTH - rightX - 20)
 	input:SetPoint("BOTTOMLEFT", rightX + 6, 14)
+	input:SetPoint("BOTTOMRIGHT", -26, 14)
 	input:SetMaxLetters(255)
 	input.placeholder = UI.Text(input, "GameFontDisableSmall")
 	input.placeholder:SetPoint("LEFT", 2, 0)
@@ -369,14 +591,33 @@ local function Create()
 		if input:IsVisible() and input:HasFocus() then input:Insert(link) end
 	end)
 
+	-- Træk i hjørnet for at gøre vinduet større (samme greb som Blizzards chatvinduer).
+	local grip = CreateFrame("Button", nil, body)
+	grip:SetSize(16, 16)
+	grip:SetPoint("BOTTOMRIGHT", -6, 6)
+	grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+	grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+	grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+	grip:SetScript("OnMouseDown", function(_, button)
+		if button == "LeftButton" then frame:StartSizing("BOTTOMRIGHT") end
+	end)
+	grip:SetScript("OnMouseUp", function()
+		frame:StopMovingOrSizing()
+		Window:SaveSize()
+	end)
+	frame.grip = grip
+
+	frame:SetScript("OnSizeChanged", function(_, _, height) Layout(height) end)
 	frame:SetScript("OnShow", function()
 		if selected then Data:ClearUnread(selected) end
 		Window:Refresh()
 	end)
 	frame:Hide()
+	CreateBar()
 end
 
 function Window:Refresh()
+	UpdateBar()
 	if not frame or not frame:IsShown() then return end
 	if selected then
 		local kind, key = selected:match("^(%a):(.+)$")
@@ -398,15 +639,28 @@ function Window:RequestRefresh()
 	end)
 end
 
+-- Markøren i skrivefeltet, når man vælger en samtale (Esc slipper den igen).
+local function FocusInput()
+	if input and input:IsShown() then input:SetFocus() end
+end
+
 function Window:Select(conv)
 	selected = conv
 	ns.db.lastConv = conv
 	Data:ClearUnread(conv)
 	self:Refresh()
+	FocusInput()
 end
 
 function Window:Open(conv)
 	if not frame then Create() end
+	-- Foldet sammen (også når toasten åbner): vinduet folder ud dér, hvor titellinjen står.
+	if bar:IsShown() then
+		SavePosition(bar)
+		bar:Hide()
+		ns.db.folded = nil
+		Place(frame)
+	end
 	if conv then
 		selected = conv
 		ns.db.lastConv = conv
@@ -414,27 +668,59 @@ function Window:Open(conv)
 	end
 	frame:Show()
 	self:Refresh()
+	if conv then FocusInput() end
+end
+
+function Window:Fold()
+	if not frame then Create() end
+	if frame:IsShown() then SavePosition(frame) end
+	if input:HasFocus() then input:ClearFocus() end
+	frame:Hide()
+	Place(bar)
+	ns.db.folded = true
+	UpdateBar()
+	bar:Show()
+end
+
+function Window:Unfold()
+	if not selected and ns.db.lastConv then selected = ns.db.lastConv end
+	self:Open()
+end
+
+function Window:Close()
+	if bar then bar:Hide() end
+	if frame then frame:Hide() end
+	ns.db.folded = nil
 end
 
 function Window:Toggle()
 	if frame and frame:IsShown() then
 		frame:Hide()
 	else
-		if not selected and ns.db.lastConv then selected = ns.db.lastConv end
-		self:Open()
+		self:Unfold() -- åbner, også når den er foldet sammen
 	end
 end
 
 function Window:IsShown() return frame ~= nil and frame:IsShown() end
+function Window:IsFolded() return bar ~= nil and bar:IsShown() end
+function Window:BarText() return bar and bar.title:GetText() end
+function Window:Frame() return frame end
 function Window:Hide() if frame then frame:Hide() end end
 function Window:Selected() return selected end
 function Window:Lines() return lines end
 function Window:Items() return frame and frame:IsShown() and list.items or {} end
+function Window:Rows() return list and list.rows or {}, list and list.visible or 0 end
+function Window:InputFocused() return input ~= nil and input:HasFocus() end
 function Window:Header() return header and header:GetText(), sub and sub:GetText() end
 function Window:Type(text)
 	input:SetText(text)
 	self:SendInput()
 end
+
+-- Var vinduet foldet sammen ved logout/reload, står titellinjen der igen.
+ns.On("PLAYER_LOGIN", function()
+	if ns.db.folded then Window:Fold() end
+end)
 
 ------------------------------------------------------------------------
 -- Nye beskeder: ulæst, toast, opdatering
@@ -459,5 +745,9 @@ ns.Listen(function(what, key, entry)
 		local g = Groups:Get(key)
 		if g then ns.Print(("you were added to the group %s. Open it with the minimap button."):format(g.name)) end
 	end
-	if what ~= "unread" then Window:RequestRefresh() end
+	if what == "unread" then
+		UpdateBar()
+	else
+		Window:RequestRefresh()
+	end
 end)

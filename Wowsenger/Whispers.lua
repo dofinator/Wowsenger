@@ -31,6 +31,31 @@ function Whispers:Open(name)
 	return name
 end
 
+-- Sletter samtalen og giver det slettede tilbage, så det kan fortrydes (Undo i listen).
+function Whispers:Delete(name)
+	local list = ns.DB.whispers[name]
+	if not list then return nil end
+	local conv = "w:" .. name
+	local removed = { name = name, list = list, unread = ns.DB.unread[conv] }
+	ns.DB.whispers[name] = nil
+	ns.DB.unread[conv] = nil
+	return removed
+end
+
+-- Fortryd: lægger de slettede linjer tilbage foran det, der evt. er kommet til siden.
+function Whispers:Restore(removed)
+	if not removed then return end
+	local now = ns.DB.whispers[removed.name]
+	local list = removed.list
+	if now then
+		for _, e in ipairs(now) do table.insert(list, e) end
+		while #list > Data.MAX_WHISPERS do table.remove(list, 1) end
+	end
+	ns.DB.whispers[removed.name] = list
+	local conv = "w:" .. removed.name
+	if removed.unread then ns.DB.unread[conv] = (ns.DB.unread[conv] or 0) + removed.unread end
+end
+
 function Whispers:Send(name, text)
 	if type(text) ~= "string" or text == "" or not name then return false end
 	-- Kopien gemmes, når spillet bekræfter med CHAT_MSG_(BN_)WHISPER_INFORM.

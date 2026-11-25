@@ -142,7 +142,23 @@ Intet er set i en rigtig klient endnu. Mål: WoW Forever først, Retail bagefter
   `InputBoxTemplate`. Ulæst-tal i rødt pr. samtale. Navne klassefarvede, hvor klassen er kendt.
 - Hover på en gruppe (i listen eller overskriften): medlemmer med online/offline.
 - Højreklik på en gruppe: Edit group..., Leave group (bekræft). På en person: Invite to party,
-  Delete conversation (bekræft). Egne små vinduer i stedet for StaticPopup/EasyMenu (taint, Grudge).
+  Delete conversation. Egne små vinduer i stedet for StaticPopup/EasyMenu (taint, Grudge).
+- **Hurtigere at bruge (brugerens valg 2026-11-25, fra mockups):**
+  - **Slet med x**: musen over en person-række viser Blizzards grå loot-"Pass"-kryds (ulæst-tallet
+    skjules imens). Klik sletter med det samme, uden bekræftelse; menuens "Delete conversation" gør det
+    samme. Nederst i listen står "Deleted Anna. Undo" i 10 s; flere sletninger i træk samles
+    ("Deleted 3 conversations."), og Undo bringer dem alle tilbage (også ulæst-tal; nye whispers, der er
+    kommet imens, lægges efter de gamle). Grupper har intet x (forlad = højreklik + bekræft).
+  - **Fold sammen**: knap ved siden af X (atlas "RedButton-Condense" på Mainline/Forever, ellers
+    `UI-Panel-SmallerButton`) gør vinduet til en titellinje "Wowsenger (3 new)" samme sted. Klik på den,
+    minimap-knappen eller en toast folder ud dér, hvor linjen står; dens X lukker. Foldet = vinduet
+    regnes som lukket (ulæst + toast). Huskes over /reload (`settings.folded`). Esc lukker ikke linjen.
+  - **Træk større** i hjørnet nederst til højre (chatvinduernes greb), 470x260 til 1400x1000; listen
+    viser flere rækker. Størrelse i `settings.size`, plads som øverste venstre hjørne i `settings.window`.
+  - **Markøren i skrivefeltet**, når man klikker på en samtale eller åbner den fra en toast (Esc slipper).
+    Minimap-knappen/`/wowsenger` sætter den ikke (så man kan gå videre med tastaturet).
+  - Fravalgt denne gang: "Select"-tilstand med afkrydsning, sletning fra overskriften (alle / ældre end
+    7 dage), lille flydende knap, skjul listen, "+ New whisper", ulæste øverst, auto-oprydning, fade.
 - Toast (UI/Toast.lua): øverst i midten (brugerens valg 2026-11-21: nederst til højre lå den bag action
   bars), strata FULLSCREEN_DIALOG, kan trækkes (plads i `settings.toastPos`; `/wowsenger toast test` viser en
   prøve, `/wowsenger toast reset` sætter den tilbage), 5 s, lyd kun for gruppebeskeder (Blizzard spiller selv en

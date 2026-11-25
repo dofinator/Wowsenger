@@ -104,23 +104,29 @@ end
 local scrollCount = 0
 function UI.ScrollList(parent, rows, rowHeight, make, render)
 	scrollCount = scrollCount + 1
-	local list = { rows = {}, items = {} }
+	local list = { rows = {}, items = {}, visible = 0 }
 	local scroll = CreateFrame("ScrollFrame", "WowsengerScroll" .. scrollCount, parent, "FauxScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
 	scroll:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -22, 0)
 	list.scroll = scroll
-	for i = 1, rows do
-		local row = CreateFrame("Button", nil, parent)
-		row:SetHeight(rowHeight)
-		row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -(i - 1) * rowHeight)
-		row:SetPoint("RIGHT", parent, "RIGHT", -24, 0)
-		make(row, i)
-		list.rows[i] = row
+	-- Antal synlige rækker kan ændres (vinduet kan trækkes større); rækker laves først, når de skal bruges.
+	function list:SetVisibleRows(n)
+		n = math.max(1, math.floor(n))
+		for i = #self.rows + 1, n do
+			local row = CreateFrame("Button", nil, parent)
+			row:SetHeight(rowHeight)
+			row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -(i - 1) * rowHeight)
+			row:SetPoint("RIGHT", parent, "RIGHT", -24, 0)
+			make(row, i)
+			self.rows[i] = row
+		end
+		self.visible = n
 	end
+	list:SetVisibleRows(rows)
 	function list:Update()
 		local offset = FauxScrollFrame_GetOffset(scroll) or 0
 		for i, row in ipairs(self.rows) do
-			local item = self.items[offset + i]
+			local item = i <= self.visible and self.items[offset + i] or nil
 			row.item = item
 			if item then
 				render(row, item)
@@ -129,7 +135,7 @@ function UI.ScrollList(parent, rows, rowHeight, make, render)
 				row:Hide()
 			end
 		end
-		FauxScrollFrame_Update(scroll, #self.items, #self.rows, rowHeight)
+		FauxScrollFrame_Update(scroll, #self.items, self.visible, rowHeight)
 	end
 	scroll:SetScript("OnVerticalScroll", function(self, offset)
 		FauxScrollFrame_OnVerticalScroll(self, offset, rowHeight, function() list:Update() end)

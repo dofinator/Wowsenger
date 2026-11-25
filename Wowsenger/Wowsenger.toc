@@ -2,7 +2,7 @@
 ## Title: Wowsenger
 ## Notes: Messenger-style chat: group conversations with your friends (offline friends catch up at login) and your whispers, in one window.
 ## Author: Christoffer
-## Version: 0.2.0
+## Version: 0.3.0
 ## SavedVariables: WowsengerDB
 ## IconTexture: Interface\Icons\INV_Misc_Note_01
 ## X-Curse-Project-ID: 1821480
